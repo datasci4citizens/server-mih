@@ -33,8 +33,6 @@ class PatientsBase(SQLModel):
     name: str
     birthday: datetime | None = None
     phone_number: str
-    is_smoker: bool
-    drink_frequency: str
     observations: str | None = None
     accept_tcle: bool
 
@@ -45,8 +43,6 @@ class PatientsUpdate(SQLModel):
     name: str | None = None
     birthday: datetime | None = None
     phone_number: str | None = None
-    is_smoker: bool | None = None
-    drink_frequency: str | None = None
     observations: str | None = None
     accept_tcle: bool | None = None
 

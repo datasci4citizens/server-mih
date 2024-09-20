@@ -14,12 +14,12 @@ mih_router = APIRouter()
 BASE_URL_MIH = "/mih/"
 
 @mih_router.post(BASE_URL_MIH, response_model=MihPublic)
-def create_wound(
+def create_mih(
         *,
         session: Session = Depends(Database.get_session),
-        wound: MihCreate
+        mih: MihCreate
 ):
-    """Create a new wound"""
+    """Create a new mih"""
     dates = {"created_at": datetime.now(), "updated_at": datetime.now()}
     if mih.start_date == None:
         dates.update({"start_date": datetime.now})
@@ -29,14 +29,14 @@ def create_wound(
     session.refresh(db_mih)
     return db_mih
 
-@mih_router.patch(BASE_URL_MIH + "{wound_id}", response_model=MihPublic)
+@mih_router.patch(BASE_URL_MIH + "{mih_id}", response_model=MihPublic)
 def update_mih(
         *,
         session: Session = Depends(Database.get_session),
         mih_id: int,
         mih: MihUpdate
 ):
-    """Update wound end date"""
+    """Update mih end date"""
     db_mih = session.get(Mih, mih_id)
     if not db_mih:
         raise HTTPException(status_code=404, detail="Mih not found")
@@ -55,7 +55,7 @@ def get_mih_with_patient(
         session: Session = Depends(Database.get_session),
         mih_id: int
 ):
-    """Get specific wound"""
+    """Get specific mih"""
     mih = session.get(Mih, mih_id)
     if not mih:
         raise HTTPException(status_code=404, detail="Mih not found")
@@ -69,7 +69,7 @@ def get_mih_tracking_records(
         limit: int = Query(default=100, le=100),
         mih_id: int
 ):
-    """Get all tracking records from wound"""
+    """Get all tracking records from mih"""
     mih = session.get(Mih, mih_id)
     if not mih:
         raise HTTPException(status_code=404, detail="Mih not found")
@@ -81,7 +81,7 @@ def delete_mih(
         session: Session = Depends(Database.get_session),
         mih_id: int
 ):
-    """Delete wound"""
+    """Delete mih"""
     mih = session.get(Mih, mih_id)
     if not mih:
         raise HTTPException(status_code=404, detail="Mih not found")
