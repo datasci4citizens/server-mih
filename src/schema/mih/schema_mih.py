@@ -1,5 +1,36 @@
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import SQLModel, Field
+from typing import Optional
+
+
+
+""" USER TABLES """
+
+class UserBase(SQLModel):
+    name: str
+    email: str
+    phone_number: str
+    accept_tcle: bool
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
+    id: int
+
+class UserUpdate(SQLModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+
+
+
+
+
 
 """ SPECIALISTS TABLES """
 class SpecialistsBase(SQLModel):
@@ -32,9 +63,8 @@ class Specialists(SpecialistsBase, table=True):
 class PatientsBase(SQLModel):
     name: str
     birthday: datetime | None = None
-    phone_number: str
     observations: str | None = None
-    accept_tcle: bool
+    
 
 class PatientsCreate(PatientsBase):
     pass
@@ -42,9 +72,7 @@ class PatientsCreate(PatientsBase):
 class PatientsUpdate(SQLModel):
     name: str | None = None
     birthday: datetime | None = None
-    phone_number: str | None = None
     observations: str | None = None
-    accept_tcle: bool | None = None
 
 class PatientsPublic(PatientsBase):
     patient_id: int
