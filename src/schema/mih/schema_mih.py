@@ -12,9 +12,7 @@ class UserBase(SQLModel):
     email: str
     phone_number: str
     accept_tcle: bool
-
-class User(UserBase, table=True):
-    id: int = Field(default=None, primary_key=True)
+    birthday: datetime | None = None
 
 class UserCreate(UserBase):
     password: str
@@ -23,10 +21,11 @@ class UserRead(UserBase):
     id: int
 
 class UserUpdate(SQLModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
+    email: str | None = None
+    name: str | None = None
 
-
+class User(UserBase, table=True):
+    id: int = Field(default=None, primary_key=True)
 
 
 
