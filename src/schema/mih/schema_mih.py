@@ -14,7 +14,7 @@ class UserBase(SQLModel):
     accept_tcle: bool
 
 class User(UserBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int = Field(default=None, primary_key=True)
 
 class UserCreate(UserBase):
     password: str
