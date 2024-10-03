@@ -76,7 +76,6 @@ class Specialists(SpecialistsBase, table=True):
 class PatientsBase(SQLModel):
     name: str
     birthday: datetime | None = None
-    birthday: datetime | None = None
     highFever: bool | None = None
     premature: bool | None = None
     deliveryProblems: bool | None = None
