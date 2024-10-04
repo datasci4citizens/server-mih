@@ -39,7 +39,6 @@ class User(UserBase, table=True):
     patients: list["Patients"] = Relationship(back_populates="user", cascade_delete=True)  # Definindo a relação corretamente
 
 
-#asas
 
 
 
