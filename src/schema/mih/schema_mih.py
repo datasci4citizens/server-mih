@@ -15,19 +15,15 @@ class UserBase(SQLModel):
     city: Optional[str] = None  # Permite nulo
     state: Optional[str] = None  # Permite nulo
     neighborhood: Optional[str] = None  # Permite nulo
-    email: Optional[str] = None  # Permite nulo
     phone_number: Optional[str] = None  # Permite nulo
     accept_tcle: Optional[bool] = None  # Permite nulo
-    birthday: Optional[datetime] = None  # Permite nulo
 
 class UserCreate(UserBase):
-    password: str
-
+    pass
 class UserRead(UserBase):
     id: int
 
 class UserUpdate(SQLModel):
-    email: Optional[str] = None  # Permite nulo
     motherName: Optional[str] = None  # Permite nulo
     fatherName: Optional[str] = None  # Permite nulo
     city: Optional[str] = None  # Permite nulo
@@ -36,7 +32,9 @@ class UserUpdate(SQLModel):
 
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    patients: list["Patients"] = Relationship(back_populates="user", cascade_delete=True)  # Definindo a relação corretamente
+    # Relacionamento com a tabela Patients
+    patients: List["Patients"] = Relationship(back_populates="user", cascade_delete=True)
+
 
 
 
@@ -69,23 +67,23 @@ class Specialists(SpecialistsBase, table=True):
     created_at: datetime
     updated_at: datetime
 
-    tracking_records: list["TrackingRecords"] = Relationship(back_populates="specialist", cascade_delete=True)
 
 """ PATIENTS TABLES """
 class PatientsBase(SQLModel):
     name: str
     birthday: datetime | None = None
-    birthday: datetime | None = None
     highFever: bool | None = None
     premature: bool | None = None
     deliveryProblems: bool | None = None
     lowWeight: bool | None = None
-    deliveryType: int | None = None
+    deliveryType: str | None = None
     brothersNumber: int | None = None
-    consultDentist: bool | None = None
+    consultType: str | None = None
+    user_id: int | None = Field(default=None, foreign_key="user.id")
+
 
 class PatientsCreate(PatientsBase):
-    pass
+    pass 
 
 class PatientsUpdate(SQLModel):
     name: str | None = None
@@ -94,9 +92,9 @@ class PatientsUpdate(SQLModel):
     premature: bool | None = None
     deliveryProblems: bool | None = None
     lowWeight: bool | None = None
-    deliveryType: int | None = None
+    deliveryType: str | None = None
     brothersNumber: int | None = None
-    consultDentist: bool | None = None
+    consultType: str | None = None
 class PatientsPublic(PatientsBase):
     patient_id: int
     created_at: datetime
@@ -106,13 +104,13 @@ class Patients(PatientsBase, table=True):
     patient_id: int = Field(default=None, primary_key=True)
     created_at: datetime
     updated_at: datetime
-    # Aqui definimos user_id como ForeignKey
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    # A relação com User é definida aqui
-    user: "User" = Relationship(back_populates="patients")
-    mih: list["Mih"] = Relationship(back_populates="patient", cascade_delete=True)
-    tracking_records: list["TrackingRecords"] = Relationship(back_populates="patient", cascade_delete=True)
+     # Chave estrangeira para referenciar o usuário
+    user_id: int | None = Field(default=None, foreign_key="user.id")
 
+    # Relacionamento com a tabela User
+    user: User = Relationship(back_populates="patients")
+
+    mih: List["Mih"] = Relationship(back_populates="patients", cascade_delete=True)
 
 
 """ Mih TABLES """
@@ -127,8 +125,7 @@ class MihBase(SQLModel):
     userObservations: str | None = None
     specialistObservations: str | None = None
     diagnosis: str | None = None
-
-    patient_id: int = Field(foreign_key="patients.patient_id")
+    patient_id: int | None = Field(default=None, foreign_key="patients.patient_id")
 
 
 class MihCreate(MihBase):
@@ -147,18 +144,16 @@ class Mih(MihBase, table = True):
     mih_id: int = Field(default=None, primary_key=True)
     created_at: datetime
     updated_at: datetime
-    patient: Patients = Relationship(back_populates="mih")
+    patient_id: int | None = Field(default=None, foreign_key="patients.patient_id")
+    patients: Patients = Relationship(back_populates="mih")
 
-    tracking_records: list["TrackingRecords"] = Relationship(back_populates="mih", cascade_delete=True)
+
 
 """ TRACKING RECORDS TABLES"""
 class TrackingRecordsBase(SQLModel):
     image_id: int
     observations: str | None = None
-    patient_id: int = Field(foreign_key="patients.patient_id")
-    mih_id: int = Field(foreign_key="mih.mih_id")
-    specialist_id: int = Field(foreign_key="specialists.specialist_id")
-
+    
 class TrackingRecordsCreate(TrackingRecordsBase):
     pass
 
@@ -174,10 +169,7 @@ class TrackingRecords(TrackingRecordsBase, table = True):
     tracking_record_id: int = Field(default=None, primary_key=True)
     created_at: datetime
     updated_at: datetime
-    patient: Patients = Relationship(back_populates="tracking_records")
-    mih: Mih = Relationship(back_populates="tracking_records")
-    specialist: Specialists = Relationship(back_populates="tracking_records")
-
+    
 """ DATA MODELS FOR RELATIONSHIPS """
 class PatientsPublicWithMih(PatientsPublic):
     mih: list[MihPublic] = []

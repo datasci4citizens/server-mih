@@ -1,33 +1,31 @@
 from datetime import datetime
-
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlmodel import Session, select
-from schema.mih.schema_mih import Patients
-from schema.mih.schema_mih import PatientsPublic
-from schema.mih.schema_mih import PatientsCreate
-from schema.mih.schema_mih import PatientsUpdate
-from schema.mih.schema_mih import PatientsPublicWithMih
+from schema.mih.schema_mih import Patients, PatientsPublic, PatientsCreate, PatientsUpdate, PatientsPublicWithMih
 from db.manager import Database
 
 mih_patients_router = APIRouter()
 BASE_URL_PATIENTS = "/patients/"
 
-
-@mih_patients_router.post(BASE_URL_PATIENTS, response_model=PatientsPublic)
+# Criar um paciente associado a um usuário específico
+@mih_patients_router.post(BASE_URL_PATIENTS + "user/{user_id}", response_model=PatientsPublic)
 def create_patient(
         *,
         session: Session = Depends(Database.get_session),
-        patient: PatientsCreate
+        patient: PatientsCreate,
+        user_id: int  # Recebe o ID do usuário na URL
 ):
-    """Create a new patient"""
+    """Create a new patient associated with a specific user"""
+    # Adiciona o user_id ao paciente e registra as datas de criação/atualização
     dates = {"created_at": datetime.now(), "updated_at": datetime.now()}
     db_patient = Patients.model_validate(patient, update=dates)
+    db_patient.user_id = user_id  # Define o user_id do paciente
     session.add(db_patient)
     session.commit()
     session.refresh(db_patient)
     return db_patient
 
-
+# Atualizar paciente
 @mih_patients_router.patch(BASE_URL_PATIENTS + "{patient_id}", response_model=PatientsPublic)
 def update_patient(
         *,
@@ -47,7 +45,7 @@ def update_patient(
     session.refresh(db_patient)
     return db_patient
 
-
+# Obter paciente por ID
 @mih_patients_router.get(BASE_URL_PATIENTS + "{patient_id}", response_model=PatientsPublic)
 def get_patient_by_id(
         *,
@@ -60,7 +58,7 @@ def get_patient_by_id(
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
-
+# Obter todos os pacientes
 @mih_patients_router.get(BASE_URL_PATIENTS, response_model=list[PatientsPublic])
 def get_all_patients(
         *,
@@ -72,6 +70,7 @@ def get_all_patients(
     patients = session.exec(select(Patients).offset(offset).limit(limit)).all()
     return patients
 
+# Obter paciente e suas feridas (MIH)
 @mih_patients_router.get(BASE_URL_PATIENTS + "{patient_id}" + "/mih", response_model=PatientsPublicWithMih)
 def get_patient_mih(
         *,
@@ -83,7 +82,7 @@ def get_patient_mih(
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
-""" ao remover um paciente, eu tenho que remover todas as feridas relacionadas """
+# Deletar paciente (e remover feridas associadas)
 @mih_patients_router.delete(BASE_URL_PATIENTS + "{patient_id}")
 def delete_patient(
         *,

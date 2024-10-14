@@ -16,10 +16,10 @@ def create_user(
         session: Session = Depends(Database.get_session),
         user: UserCreate
 ):
-    """Create a new user"""
-    db_user = session.exec(select(User).where(User.email == user.email)).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    ##"""Create a new user"""
+    ##db_user = session.exec(select(User).where(User.email == user.email)).first()
+    #if db_user:
+        #raise HTTPException(status_code=400, detail="Email already registered")
     
     new_user = User.from_orm(user)
     session.add(new_user)
