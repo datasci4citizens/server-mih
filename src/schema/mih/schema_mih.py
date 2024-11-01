@@ -10,8 +10,7 @@ from typing import Optional
 """ USER TABLES """
 
 class UserBase(SQLModel):
-    motherName: Optional[str] = None  # Permite nulo
-    fatherName: Optional[str] = None  # Permite nulo
+    personInCharge: Optional[str] = None  # Permite nulo
     city: Optional[str] = None  # Permite nulo
     state: Optional[str] = None  # Permite nulo
     neighborhood: Optional[str] = None  # Permite nulo
@@ -79,8 +78,7 @@ class PatientsBase(SQLModel):
     deliveryType: str | None = None
     brothersNumber: int | None = None
     consultType: str | None = None
-    user_id: int | None = Field(default=None, foreign_key="user.id")
-
+    deliveryProblemsTypes: str | None = None
 
 class PatientsCreate(PatientsBase):
     pass 
@@ -125,7 +123,6 @@ class MihBase(SQLModel):
     userObservations: str | None = None
     specialistObservations: str | None = None
     diagnosis: str | None = None
-    patient_id: int | None = Field(default=None, foreign_key="patients.patient_id")
 
 
 class MihCreate(MihBase):
