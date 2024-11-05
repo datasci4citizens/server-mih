@@ -8,7 +8,7 @@ mih_patients_router = APIRouter()
 BASE_URL_PATIENTS = "/patients/"
 
 # Criar um paciente associado a um usuário específico
-@mih_patients_router.post(BASE_URL_PATIENTS + "user/{user_id}", response_model=PatientsPublic)
+@mih_patients_router.post("/users/" + "{user_id}" + BASE_URL_PATIENTS, response_model=PatientsPublic)
 def create_patient(
         *,
         session: Session = Depends(Database.get_session),
@@ -57,6 +57,19 @@ def get_patient_by_id(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
+
+# Obter todos os pacientes de um dado user_id
+@mih_patients_router.get("/users/" + "{user_id}" + BASE_URL_PATIENTS, response_model=list[PatientsPublic])
+def get_all_patients(
+        *,
+        session: Session = Depends(Database.get_session),
+        user_id: int
+):
+    """Get all patients for a specific user"""
+    patients = session.exec(
+        select(Patients).where(Patients.user_id == user_id)
+    ).all()
+    return patients
 
 # Obter todos os pacientes
 @mih_patients_router.get(BASE_URL_PATIENTS, response_model=list[PatientsPublic])
