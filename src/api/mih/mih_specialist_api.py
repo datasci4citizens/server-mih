@@ -6,6 +6,8 @@ from schema.mih.schema_mih import Specialists
 from schema.mih.schema_mih import SpecialistsPublic
 from schema.mih.schema_mih import SpecialistsCreate
 from schema.mih.schema_mih import SpecialistsUpdate
+from schema.mih.schema_mih import Specialists, Mih, MihPublic
+
 from db.manager import Database
 
 mih_specialist_router = APIRouter()
@@ -82,3 +84,5 @@ def delete_specialist(
     session.delete(specialist)
     session.commit()
     return {"ok": True}
+
+

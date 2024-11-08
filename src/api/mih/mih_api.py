@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlmodel import Session
+from sqlmodel import Session, select
 from schema.mih.schema_mih import Mih
 from schema.mih.schema_mih import MihPublic
 from schema.mih.schema_mih import MihCreate
@@ -13,17 +13,19 @@ from db.manager import Database
 mih_router = APIRouter()
 BASE_URL_MIH = "/mih/"
 
-@mih_router.post(BASE_URL_MIH, response_model=MihPublic)
+@mih_router.post(BASE_URL_MIH + "{patient_id}", response_model=MihPublic)
 def create_mih(
         *,
         session: Session = Depends(Database.get_session),
-        mih: MihCreate
+        mih: MihCreate,
+        patient_id: int
 ):
     """Create a new mih"""
     dates = {"created_at": datetime.now(), "updated_at": datetime.now()}
     if mih.start_date == None:
         dates.update({"start_date": datetime.now})
     db_mih = Mih.model_validate(mih, update=dates)
+    db_mih.patient_id = patient_id
     session.add(db_mih)
     session.commit()
     session.refresh(db_mih)
@@ -88,3 +90,15 @@ def delete_mih(
     session.delete(mih)
     session.commit()
     return {"ok": True}
+
+# Novo endpoint para listar MIH não diagnosticados para especialistas
+@mih_router.get(BASE_URL_MIH+ "undiagnosed", response_model=list[MihPublic])
+def get_undiagnosed_mih(
+        *,
+        session: Session = Depends(Database.get_session),
+):
+    """Get undiagnosed MIH (accessible only to specialists)"""
+    
+    # Busca apenas os MIH não diagnosticados
+    undiagnosed_mih = session.exec(select(Mih).where(Mih.diagnosis.is_(None))).all()
+    return undiagnosed_mih
