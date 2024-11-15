@@ -23,8 +23,6 @@ class UserRead(UserBase):
     id: int
 
 class UserUpdate(SQLModel):
-    motherName: Optional[str] = None  # Permite nulo
-    fatherName: Optional[str] = None  # Permite nulo
     city: Optional[str] = None  # Permite nulo
     state: Optional[str] = None  # Permite nulo
     neighborhood: Optional[str] = None  # Permite nulo
