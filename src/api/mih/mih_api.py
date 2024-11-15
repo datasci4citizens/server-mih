@@ -92,14 +92,23 @@ def delete_mih(
     session.commit()
     return {"ok": True}
 
+
 # Novo endpoint para listar MIH não diagnosticados para especialistas
-@mih_router.get(BASE_URL_MIH+ "undiagnosed", response_model=list[MihPublic])
+@mih_router.get(BASE_URL_MIH + "undiagnosed", response_model=list[MihPublic])
 def get_undiagnosed_mih(
         *,
         session: Session = Depends(Database.get_session),
+        limit: int = Query(10, ge=1),  # Número máximo de registros a retornar
+        offset: int = Query(0, ge=0),  # Ponto de partida nos registros
 ):
     """Get undiagnosed MIH (accessible only to specialists)"""
     
-    # Busca apenas os MIH não diagnosticados
-    undiagnosed_mih = session.exec(select(Mih).where(Mih.diagnosis.is_(None))).all()
+    # Busca apenas os MIH não diagnosticados com paginação
+    undiagnosed_mih = session.exec(
+        select(Mih)
+        .where(Mih.diagnosis.is_(None))
+        .offset(offset)  # Pular registros iniciais
+        .limit(limit)    # Limitar o número de registros retornados
+    ).all()
+    
     return undiagnosed_mih
