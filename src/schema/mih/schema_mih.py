@@ -130,6 +130,8 @@ class MihUpdate(SQLModel):
     # mih_location: str | None = None # acho que não deveria da pra mudar a localização da ferida
     # start_date: datetime | None = None
     diagnosis: str | None = None
+    specialistObservations: str | None = None
+
     # mih_type_id: int | None = None
 
 class MihPublic(MihBase):

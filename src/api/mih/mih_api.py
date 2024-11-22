@@ -47,6 +47,8 @@ def update_mih(
     
     # Atualiza apenas o campo diagnosis
     db_mih.diagnosis = update_data.diagnosis
+    db_mih.specialistObservations = update_data.specialistObservations
+
     db_mih.updated_at = datetime.now()  # Atualiza a data de modificação
 
     # Salva no banco de dados
