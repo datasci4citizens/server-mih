@@ -170,7 +170,7 @@ class PatientsPublicWithMih(PatientsPublic):
     mih: list[MihPublic] = []
 
 class MihPublicWithPatient(MihPublic):
-    patient: PatientsPublic | None = None
+    patients: PatientsPublic | None = None
 
 class MihPublicWithTrackingRecords(MihPublic):
     tracking_records: list[TrackingRecordsPublic] = []

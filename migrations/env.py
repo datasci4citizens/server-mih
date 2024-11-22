@@ -6,6 +6,8 @@ from sqlmodel import SQLModel
 from alembic import context
 from pathlib import Path
 from src.schema.mih.schema_mih import User, Specialists, TrackingRecords, Patients, Mih
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

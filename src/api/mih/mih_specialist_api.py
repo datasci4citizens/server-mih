@@ -7,7 +7,6 @@ from schema.mih.schema_mih import SpecialistsPublic
 from schema.mih.schema_mih import SpecialistsCreate
 from schema.mih.schema_mih import SpecialistsUpdate
 from schema.mih.schema_mih import Specialists, Mih, MihPublic
-
 from db.manager import Database
 
 mih_specialist_router = APIRouter()

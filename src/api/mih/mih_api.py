@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlmodel import Session, select
+from sqlalchemy.orm import joinedload
 
 from schema.mih.schema_mih import Mih
 from schema.mih.schema_mih import MihPublic
@@ -14,7 +15,7 @@ from db.manager import Database
 mih_router = APIRouter()
 BASE_URL_MIH = "/mih/"
 
-@mih_router.post(BASE_URL_MIH + "{patient_id}", response_model=MihPublic)
+@mih_router.post("/"+"{patient_id}" + BASE_URL_MIH, response_model=MihPublic)
 def create_mih(
         *,
         session: Session = Depends(Database.get_session),
@@ -37,20 +38,22 @@ def update_mih(
         *,
         session: Session = Depends(Database.get_session),
         mih_id: int,
-        mih: MihUpdate
+        update_data: MihUpdate  # Recebe apenas o diagnóstico
 ):
-    """Update mih end date"""
+    """Update mih diagnosis"""
     db_mih = session.get(Mih, mih_id)
     if not db_mih:
         raise HTTPException(status_code=404, detail="Mih not found")
-    mih_data = db_mih.model_dump(exclude_unset=True)
-    updated_at = {"updated_at": datetime.now()}
-    db_mih.sqlmodel_update(mih_data, update=updated_at)
+    
+    # Atualiza apenas o campo diagnosis
+    db_mih.diagnosis = update_data.diagnosis
+    db_mih.updated_at = datetime.now()  # Atualiza a data de modificação
+
+    # Salva no banco de dados
     session.add(db_mih)
     session.commit()
     session.refresh(db_mih)
     return db_mih
-
 
 @mih_router.get("/patient" + BASE_URL_MIH + "{mih_id}", response_model=MihPublicWithPatient)
 def get_mih_with_patient(
@@ -60,6 +63,7 @@ def get_mih_with_patient(
 ):
     """Get specific mih"""
     mih = session.get(Mih, mih_id)
+  
     if not mih:
         raise HTTPException(status_code=404, detail="Mih not found")
     return mih
