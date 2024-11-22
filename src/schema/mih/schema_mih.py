@@ -44,7 +44,7 @@ class SpecialistsBase(SQLModel):
     email: str
     name: str
     phone_number: str
-    is_allowed: bool
+    is_allowed: bool | None = None
 
 class SpecialistsCreate(SpecialistsBase):
     pass
