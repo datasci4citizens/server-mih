@@ -13,7 +13,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth, OAuthError
-from db.config import CLIENT_ID, CLIENT_SECRET
 from fastapi.staticfiles import StaticFiles
 from auth.auth_service import AuthService
 
