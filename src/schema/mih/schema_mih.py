@@ -106,7 +106,7 @@ class Patients(PatientsBase, table=True):
     # Relacionamento com a tabela User
     user: User = Relationship(back_populates="patients")
 
-    mih: List["Mih"] = Relationship(back_populates="patients", cascade_delete=True)
+    mih: List["Mih"] = Relationship(back_populates="patient", cascade_delete=True)
 
 
 """ Mih TABLES """
@@ -140,7 +140,7 @@ class Mih(MihBase, table = True):
     created_at: datetime
     updated_at: datetime
     patient_id: int | None = Field(default=None, foreign_key="patients.patient_id")
-    patients: Patients = Relationship(back_populates="mih")
+    patient: Patients = Relationship(back_populates="mih")
 
 
 
@@ -170,7 +170,7 @@ class PatientsPublicWithMih(PatientsPublic):
     mih: list[MihPublic] = []
 
 class MihPublicWithPatient(MihPublic):
-    patients: PatientsPublic | None = None
+    patient: PatientsPublic | None = None
 
 class MihPublicWithTrackingRecords(MihPublic):
     tracking_records: list[TrackingRecordsPublic] = []

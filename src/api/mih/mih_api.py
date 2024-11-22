@@ -55,7 +55,7 @@ def update_mih(
     session.refresh(db_mih)
     return db_mih
 
-@mih_router.get("/patient" + BASE_URL_MIH + "{mih_id}", response_model=MihPublicWithPatient)
+@mih_router.get("/" + "{patient_id}" + BASE_URL_MIH + "{mih_id}", response_model=MihPublicWithPatient)
 def get_mih_with_patient(
         *,
         session: Session = Depends(Database.get_session),
