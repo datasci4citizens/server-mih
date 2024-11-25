@@ -33,7 +33,7 @@ async def call_google_signin(request: Request):
     flow.redirect_uri = 'http://localhost:8000/auth/login/google/callback'
     auth_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true'
+        #include_granted_scopes='true'
     )
     request.session['state'] = state
     return RedirectResponse(auth_url)
@@ -73,7 +73,7 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     # adds the information we need from the user to the cookies
     request.session['id'] = user_info['sub'] 
     request.session['email'] = user_info['email']
-    required_fields = [user.birthday, user.state, user.city, user.speciality]
+    required_fields = [user.email, user.personInCharge, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.update_at]
     if all(field is None for field in required_fields):
         return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080/users/'))
     else:

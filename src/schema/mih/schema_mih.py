@@ -4,33 +4,51 @@ from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 from sqlmodel import SQLModel, Field
 from typing import Optional
+from enum import Enum
 
 
+# Enum para os tipos de usuário
+class UserRole(str, Enum):
+    RESPONSIBLE = "responsible"
+    SPECIALIST = "specialist"
 
-""" USER TABLES """
-
+# Base para as operações de CRUD
 class UserBase(SQLModel):
-    personInCharge: Optional[str] = None  # Permite nulo
-    city: Optional[str] = None  # Permite nulo
-    state: Optional[str] = None  # Permite nulo
-    neighborhood: Optional[str] = None  # Permite nulo
-    phone_number: Optional[str] = None  # Permite nulo
-    accept_tcle: Optional[bool] = None  # Permite nulo
+    email: str  # Campo obrigatório
+    role: UserRole  # Define se é responsável ou especialista
+    personInCharge: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    neighborhood: Optional[str] = None
+    phone_number: Optional[str] = None
+    is_allowed: Optional[bool] = None
+    accept_tcle: Optional[bool] = None
 
 class UserCreate(UserBase):
     pass
+
 class UserRead(UserBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
 
 class UserUpdate(SQLModel):
-    city: Optional[str] = None  # Permite nulo
-    state: Optional[str] = None  # Permite nulo
-    neighborhood: Optional[str] = None  # Permite nulo
+    email: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    neighborhood: Optional[str] = None
 
+# Tabela principal de usuário
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    # Relacionamento com a tabela Patients
-    patients: List["Patients"] = Relationship(back_populates="user", cascade_delete=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    # Relacionamento com a tabela de pacientes
+    patients: Optional[List["Patients"]] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "passive_deletes": True}
+    )
 
 
 
@@ -40,7 +58,7 @@ class User(UserBase, table=True):
 
 
 """ SPECIALISTS TABLES """
-class SpecialistsBase(SQLModel):
+""" class SpecialistsBase(SQLModel):
     email: str
     name: str
     phone_number: str
@@ -62,7 +80,7 @@ class SpecialistsUpdate(SQLModel):
 class Specialists(SpecialistsBase, table=True):
     specialist_id: int = Field(default=None, primary_key=True)
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime """
 
 
 """ PATIENTS TABLES """
@@ -177,5 +195,18 @@ class MihPublicWithPatient(MihPublic):
 class MihPublicWithTrackingRecords(MihPublic):
     tracking_records: list[TrackingRecordsPublic] = []
 
-class SpecialistsPublicWithTrackingRecords(SpecialistsPublic):
+""" class SpecialistsPublicWithTrackingRecords(SpecialistsPublic):
+    pass """
+
+
+""" IMAGES TABLES """
+class ImagesBase(SQLModel):
+    extension: str
+
+class ImagesCreate(ImagesBase):
     pass
+
+class Images(ImagesBase, table = True):
+    image_id: int = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default=datetime.now())
+    created_by: int = Field(foreign_key="user.id")

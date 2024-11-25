@@ -5,12 +5,12 @@ from sqlalchemy import pool
 from sqlmodel import SQLModel
 from alembic import context
 from pathlib import Path
-from src.schema.mih.schema_mih import User, Specialists, TrackingRecords, Patients, Mih
-
+from src.schema.mih.schema_mih import User, TrackingRecords, Patients, Mih
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
 
 DB_PATH = "postgresql://postgres:postgres@localhost:5431/postgres"
 config.set_main_option("sqlalchemy.url", DB_PATH)
