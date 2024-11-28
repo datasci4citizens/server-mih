@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests as rq
 from google_auth_oauthlib.flow import Flow
 import os
+import json
+
+
 
 login_router = APIRouter()
 
@@ -15,7 +18,7 @@ login_router = APIRouter()
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # This variable specifies the name of a file that contains the OAuth 2.0 information for this application
-CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(__file__), "client_secret.json")
+#CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(__file__), "client_secret.json")
 
 # These OAuth 2.0 scopes allow access to the user's Google account OpenID, Email, and Profile.
 SCOPES = [
@@ -26,7 +29,7 @@ SCOPES = [
 
 @login_router.get('/auth/login/google')
 async def call_google_signin(request: Request):
-    flow = Flow.from_client_secrets_file(
+    """ flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE, 
         scopes=SCOPES
     )
@@ -36,14 +39,48 @@ async def call_google_signin(request: Request):
         #include_granted_scopes='true'
     )
     request.session['state'] = state
+    return RedirectResponse(auth_url) """
+
+    client_secrets = {
+        "web":{
+            "client_id":os.getenv('CLIENT_ID'),
+            "project_id":"hypomineralisation",
+            "auth_uri":"https://accounts.google.com/o/oauth2/auth",
+            "token_uri":"https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret":os.getenv('CLIENT_SECRET'),
+            "redirect_uris":[os.getenv('SERVER_URL')]
+        }
+    }
+
+    flow = Flow.from_client_config(
+        client_secrets, 
+        scopes=SCOPES
+    )
+    flow.redirect_uri = 'http://localhost:8000/auth/login/google/callback'
+    auth_url, state = flow.authorization_url(
+        access_type='offline'
+    )
+    request.session['state'] = state
     return RedirectResponse(auth_url)
 
 
 @login_router.get('/auth/login/google/callback')
 async def callback_uri(request: Request, session: Session = Depends(Database.get_session)):
     state = request.session.get('state')
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, 
+    client_secrets = {
+        "web":{
+            "client_id":os.getenv('CLIENT_ID'),
+            "project_id":"hypomineralisation",
+            "auth_uri":"https://accounts.google.com/o/oauth2/auth",
+            "token_uri":"https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret":os.getenv('CLIENT_SECRET'),
+            "redirect_uris":[os.getenv('SERVER_URL')]
+        }
+    }
+    flow = Flow.from_client_config(
+        client_secrets, 
         scopes=SCOPES, 
         state=state
     )
@@ -65,7 +102,7 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     statement = select(User).where(User.email == user_info['email'])
     user = session.exec(statement).first()
     if user is None:
-        user = User(email=user_info['email'], name=user_info["name"])
+        user = User(email=user_info['email'], name=user_info["name"], role="responsible")  # Valor temporário
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -73,11 +110,11 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     # adds the information we need from the user to the cookies
     request.session['id'] = user_info['sub'] 
     request.session['email'] = user_info['email']
-    required_fields = [user.email, user.personInCharge, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.update_at]
+    required_fields = [user.email, user.role, user.personInCharge, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.updated_at]
     if all(field is None for field in required_fields):
         return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080/users/'))
     else:
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080/users/'))
 
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")

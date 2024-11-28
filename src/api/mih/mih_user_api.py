@@ -5,7 +5,6 @@ from datetime import datetime
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import random
 from enum import Enum
-from db.manager import Database
 from fastapi import Request
 from fastapi import Body
 from db.manager import Database  # Assumindo que você já tenha isso configurado
@@ -28,6 +27,24 @@ mih_user_router = APIRouter(
 BASE_URL_USER = "/users/"
 
 
+""" @mih_user_router.post("/choose_role/")
+async def choose_role(email: str, role: UserRole, db: Session = Depends(Database)):
+    # Verifica se o role é válido
+    if role not in [UserRole.RESPONSIBLE, UserRole.SPECIALIST]:
+        raise HTTPException(status_code=400, detail="Role inválido.")
+
+    # Verifica se o usuário já existe
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    
+    # Atualiza o role do usuário
+    user.role = role
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Usuário registrado com sucesso!", "user": user}
+ """
 
 # Criar um novo usuário (responsável ou especialista)
 @mih_user_router.post(BASE_URL_USER, response_model=UserRead)
@@ -36,9 +53,14 @@ def create_user(
         session: Session = Depends(Database.get_session),
         user: UserCreate
 ):
-    # Validação da role
+    # Verifica se a role foi fornecida, caso contrário, atribui um valor padrão
+    if not user.role:
+        user.role = UserRole.RESPONSIBLE  # ou qualquer valor padrão que você prefira
+    
+    # Verifica se a role é válida
     if user.role not in UserRole:
         raise HTTPException(status_code=400, detail="Invalid role")
+
     
     dates = {"created_at": datetime.now(), "updated_at": datetime.now()}
     db_user = User.model_validate(user, update=dates)

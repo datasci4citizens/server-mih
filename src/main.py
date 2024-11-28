@@ -20,6 +20,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.oauth_google import login_router
 
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 Database.db_engine()
 
 app = FastAPI()
