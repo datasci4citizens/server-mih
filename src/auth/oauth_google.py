@@ -110,6 +110,7 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     # adds the information we need from the user to the cookies
     request.session['id'] = user_info['sub'] 
     request.session['email'] = user_info['email']
+    request.session['name'] = user_info['name']
     required_fields = [user.email, user.role, user.name, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.updated_at]
     if all(field is None for field in required_fields):
         return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/'))
