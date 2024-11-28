@@ -110,11 +110,11 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     # adds the information we need from the user to the cookies
     request.session['id'] = user_info['sub'] 
     request.session['email'] = user_info['email']
-    required_fields = [user.email, user.role, user.personInCharge, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.updated_at]
+    required_fields = [user.email, user.role, user.name, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.updated_at]
     if all(field is None for field in required_fields):
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080/'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/'))
     else:
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8080/users/'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/users/'))
 
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")
