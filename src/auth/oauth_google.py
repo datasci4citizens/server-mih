@@ -102,7 +102,7 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     statement = select(User).where(User.email == user_info['email'])
     user = session.exec(statement).first()
     if user is None:
-        user = User(email=user_info['email'], name=user_info["name"], role="responsible")  # Valor temporário
+        user = User(email=user_info['email'], role="responsible", id=user_info['id'])  # Valor temporário
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -115,12 +115,12 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     if all(field is None for field in required_fields):
         return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/'))
     else:
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/users/'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:5173/'))
 
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")
 async def me(request: Request, current_user = Depends(AuthService.get_current_user)):
-    return request.session
+    return current_user
 
 def credentials_to_dict(credentials):
   return {'token': credentials.token,

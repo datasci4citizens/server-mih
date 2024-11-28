@@ -14,7 +14,7 @@ class UserRole(str, Enum):
 
 # Base para as operações de CRUD
 class UserBase(SQLModel):
-    name: str  # Campo obrigatório
+    name: Optional[str] = None  # Campo obrigatório
     email: str  # Campo obrigatório
     role: UserRole  # Define se é responsável ou especialista
     #personInCharge: Optional[str] = None
