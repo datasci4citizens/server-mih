@@ -100,7 +100,7 @@ class PatientsBase(SQLModel):
     brothersNumber: int | None = None
     consultType: str | None = None
     deliveryProblemsTypes: str | None = None
-
+    
 class PatientsCreate(PatientsBase):
     pass 
 

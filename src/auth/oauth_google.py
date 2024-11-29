@@ -119,8 +119,19 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
 
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")
-async def me(request: Request, current_user = Depends(AuthService.get_current_user)):
-    return request.session
+async def me(
+    request: Request,
+    current_user: dict = Depends(AuthService.get_current_user),  # Obtém o usuário autenticado
+    db: Session = Depends(get_db)  # Conexão com o banco de dados
+):
+    email = current_user.get("email")  # Pega o e-mail da sessão
+
+    # Busca o usuário no banco de dados
+    db_user = db.query(User).filter(User.email == email).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return db_user  # Retorna o usuário encontrado no banco de dados
 
 def credentials_to_dict(credentials):
   return {'token': credentials.token,
