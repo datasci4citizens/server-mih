@@ -33,23 +33,20 @@ app.include_router(login_router)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600)
+
+origins = [
+    "http://localhost:5173",  # Substitua pela URL do seu frontend
+    "http://127.0.0.1:5173", # Outra possível origem do seu React
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows requests from this source
-    allow_credentials=True, # Allows sending cookies, authentication tokens and other types of credentials in requests
-    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=origins,  # Especifique as origens permitidas
+    allow_credentials=True,  # Permitir envio de cookies ou credenciais
+    allow_methods=["*"],  # Métodos HTTP permitidos
+    allow_headers=["*"],  # Cabeçalhos permitidos
 )
-
-# origins = [
-#     "http://localhost.tiangolo.com",
-#     "https://localhost.tiangolo.com",
-#     "http://localhost",
-#     "http://localhost:8000"
-# ]
-
 
 #app.include_router(router)
 app.include_router(mih_patients_router)

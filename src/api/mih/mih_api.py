@@ -11,8 +11,12 @@ from schema.mih.schema_mih import MihUpdate
 from schema.mih.schema_mih import MihPublicWithPatient
 from schema.mih.schema_mih import MihPublicWithTrackingRecords
 from db.manager import Database
+from auth.auth_service import AuthService
 
-mih_router = APIRouter()
+
+mih_router = APIRouter(
+    dependencies=[Depends(AuthService.get_current_user)]
+)
 BASE_URL_MIH = "/mih/"
 
 @mih_router.post("/"+"{patient_id}" + BASE_URL_MIH, response_model=MihPublic)
