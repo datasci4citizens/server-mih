@@ -98,8 +98,10 @@ def get_user(user_id: int, session: Session = Depends(Database.get_session)):
     return user
 
 # Atualizar um usuário (responsavel ou especialista)
-@mih_user_router.put(BASE_URL_USER + "{user_id}", response_model=UserRead)
-def update_user(user_id: int, user: UserUpdate, session: Session = Depends(Database.get_session)):
+@mih_user_router.put(BASE_URL_USER, response_model=UserRead)
+def update_user(request: Request, user: UserUpdate, session: Session = Depends(Database.get_session)):
+
+    user_id = request.session.get("id")
     db_user = session.get(User, user_id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")

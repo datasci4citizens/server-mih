@@ -1,4 +1,7 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Depends
+from sqlalchemy.orm import Session
+from db.manager import Database
+from schema.mih.schema_mih import User  # Importe o modelo User do banco de dados
 
 class AuthService:
     @staticmethod

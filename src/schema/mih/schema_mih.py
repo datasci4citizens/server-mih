@@ -14,9 +14,9 @@ class UserRole(str, Enum):
 
 # Base para as operações de CRUD
 class UserBase(SQLModel):
-    name: str  # Campo obrigatório
+    name: Optional[str] = None  # Campo obrigatório
     email: str  # Campo obrigatório
-    role: UserRole  # Define se é responsável ou especialista
+    role: UserRole | None = None # Define se é responsável ou especialista
     #personInCharge: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
@@ -34,10 +34,14 @@ class UserRead(UserBase):
     updated_at: datetime
 
 class UserUpdate(SQLModel):
+    role: UserRole | None = None  # Define se é responsável ou especialista
+    name: Optional[str] = None  # Campo obrigatório
     email: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
+    phone_number: Optional[str] = None
     neighborhood: Optional[str] = None
+    accept_tcle: Optional[bool] = None
 
 # Tabela principal de usuário
 class User(UserBase, table=True):
@@ -132,6 +136,9 @@ class Patients(PatientsBase, table=True):
 """ no tutorial do sqlmodel, mih é o hero e patient e mih_type é o team"""
 class MihBase(SQLModel):
     start_date: datetime
+    photo_id1: int
+    photo_id2: int 
+    photo_id3: int 
     end_date: datetime | None = None
     painLevel: int | None = None
     sensitivityField: bool | None = None
@@ -210,4 +217,4 @@ class ImagesCreate(ImagesBase):
 class Images(ImagesBase, table = True):
     image_id: int = Field(default=None, primary_key=True)
     created_at: datetime = Field(default=datetime.now())
-    created_by: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id")
