@@ -122,16 +122,19 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
 async def me(
     request: Request,
     current_user: dict = Depends(AuthService.get_current_user),  # Obtém o usuário autenticado
-    db: Session = Depends(get_db)  # Conexão com o banco de dados
+    session: Session = Depends(Database.get_session)  # Conexão com o banco de dados
 ):
-    email = current_user.get("email")  # Pega o e-mail da sessão
 
-    # Busca o usuário no banco de dados
-    db_user = db.query(User).filter(User.email == email).first()
-    if not db_user:
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User unauthenticated")
+
+    user_id = request.session.get("id")  # Pega o e-mail da sessão
+    
+    user = session.get(User, user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return db_user  # Retorna o usuário encontrado no banco de dados
+    return user  # Retorna o usuário encontrado no banco de dados
 
 def credentials_to_dict(credentials):
   return {'token': credentials.token,
