@@ -1,4 +1,8 @@
 __pycache__/
 docker-compose.yml
 .venv/
+.env
 .idea/
+client_secret.json
+secrets.env
+requirements.txt

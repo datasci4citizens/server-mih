@@ -7,8 +7,12 @@ from schema.mih.schema_mih import TrackingRecordsPublic
 from schema.mih.schema_mih import TrackingRecordsCreate
 from schema.mih.schema_mih import TrackingRecordsUpdate
 from db.manager import Database
+from auth.auth_service import AuthService
 
-mih_tracking_records_router = APIRouter()
+
+mih_tracking_records_router = APIRouter(
+    dependencies=[Depends(AuthService.get_current_user)]
+)
 BASE_URL_TRACKING_RECORDS = "/tracking-records/"
 
 @mih_tracking_records_router.post(BASE_URL_TRACKING_RECORDS, response_model=TrackingRecordsPublic)

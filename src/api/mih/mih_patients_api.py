@@ -3,23 +3,30 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlmodel import Session, select
 from schema.mih.schema_mih import Patients, PatientsPublic, PatientsCreate, PatientsUpdate, PatientsPublicWithMih
 from db.manager import Database
+from auth.auth_service import AuthService
+from fastapi import Request
 
-mih_patients_router = APIRouter()
+
+mih_patients_router = APIRouter(
+    dependencies=[Depends(AuthService.get_current_user)]
+)
 BASE_URL_PATIENTS = "/patients/"
 
 # Criar um paciente associado a um usuário específico
-@mih_patients_router.post(BASE_URL_PATIENTS + "user/{user_id}", response_model=PatientsPublic)
+@mih_patients_router.post("/users" + BASE_URL_PATIENTS, response_model=PatientsPublic)
 def create_patient(
-        *,
-        session: Session = Depends(Database.get_session),
-        patient: PatientsCreate,
-        user_id: int  # Recebe o ID do usuário na URL
+    *,
+    request: Request,
+    session: Session = Depends(Database.get_session),
+    patient: PatientsCreate,
 ):
     """Create a new patient associated with a specific user"""
-    # Adiciona o user_id ao paciente e registra as datas de criação/atualização
+    user_id = request.session.get("id")  # Obtém o ID do usuário da sessão
+
+    # Adiciona os valores ao modelo
     dates = {"created_at": datetime.now(), "updated_at": datetime.now()}
     db_patient = Patients.model_validate(patient, update=dates)
-    db_patient.user_id = user_id  # Define o user_id do paciente
+    db_patient.user_id = user_id  # Define o ID do usuário no paciente
     session.add(db_patient)
     session.commit()
     session.refresh(db_patient)
@@ -57,6 +64,19 @@ def get_patient_by_id(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
+
+# Obter todos os pacientes de um dado user_id
+@mih_patients_router.get("/users"+ BASE_URL_PATIENTS, response_model=list[PatientsPublic])
+def get_all_patients(
+        *,
+        request:Request,
+        session: Session = Depends(Database.get_session),
+):
+    """Get all patients for a specific user"""
+    patients = session.exec(
+        select(Patients).where(Patients.user_id == request.session.get("id"))
+    ).all()
+    return patients
 
 # Obter todos os pacientes
 @mih_patients_router.get(BASE_URL_PATIENTS, response_model=list[PatientsPublic])
