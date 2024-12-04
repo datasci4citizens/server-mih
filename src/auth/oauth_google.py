@@ -28,7 +28,7 @@ SCOPES = [
 ]
 
 @login_router.get('/auth/login/google')
-async def call_google_signin(request: Request):
+async def call_google_signin(request: Request, server_url = os.getenv("SERVER_URL")):
     """ flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE, 
         scopes=SCOPES
@@ -57,7 +57,7 @@ async def call_google_signin(request: Request):
         client_secrets, 
         scopes=SCOPES
     )
-    flow.redirect_uri = 'http://localhost:8000/auth/login/google/callback'
+    flow.redirect_uri = f'{server_url}auth/login/google/callback'
     auth_url, state = flow.authorization_url(
         access_type='offline'
     )
@@ -66,7 +66,7 @@ async def call_google_signin(request: Request):
 
 
 @login_router.get('/auth/login/google/callback')
-async def callback_uri(request: Request, session: Session = Depends(Database.get_session)):
+async def callback_uri(request: Request, session: Session = Depends(Database.get_session), server_url = os.getenv("SERVER_URL"), front_url = os.getenv("FRONT_URL")):
     state = request.session.get('state')
     client_secrets = {
         "web":{
@@ -84,7 +84,8 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
         scopes=SCOPES, 
         state=state
     )
-    flow.redirect_uri = 'http://localhost:8000/auth/login/google/callback'
+
+    flow.redirect_uri = f'{server_url}auth/login/google/callback'
 
     authorization_response = str(request.url)
 
@@ -113,9 +114,9 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     request.session['name'] = user_info['name']
     required_fields = [user.email, user.role, user.name, user.city, user.state, user.neighborhood, user.phone_number, user.accept_tcle, user.id, user.created_at, user.updated_at]
     if all(field is None for field in required_fields):
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:8000/'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", front_url))
     else:
-        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", 'http://localhost:5173'))
+        return RedirectResponse(os.getenv("LOGIN_CALLBACK_URL", front_url))
 
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")
