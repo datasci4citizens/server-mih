@@ -57,7 +57,7 @@ async def call_google_signin(request: Request, server_url = os.getenv("SERVER_UR
         client_secrets, 
         scopes=SCOPES
     )
-    flow.redirect_uri = f'{server_url}auth/login/google/callback'
+    flow.redirect_uri = f'{server_url}/auth/login/google/callback'
     auth_url, state = flow.authorization_url(
         access_type='offline'
     )
@@ -85,7 +85,7 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
         state=state
     )
 
-    flow.redirect_uri = f'{server_url}auth/login/google/callback'
+    flow.redirect_uri = f'{server_url}/auth/login/google/callback'
 
     authorization_response = str(request.url)
 
