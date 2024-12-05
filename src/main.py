@@ -35,14 +35,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600)
 
-origins = [
-    "http://localhost:5173",  # Substitua pela URL do seu frontend
-    "http://127.0.0.1:5173", # Outra possível origem do seu React
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Especifique as origens permitidas
+    allow_origins=[os.getenv("FRONT_URL")],  # Especifique as origens permitidas
     allow_credentials=True,  # Permitir envio de cookies ou credenciais
     allow_methods=["*"],  # Métodos HTTP permitidos
     allow_headers=["*"],  # Cabeçalhos permitidos
