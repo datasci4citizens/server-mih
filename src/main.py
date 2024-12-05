@@ -27,7 +27,6 @@ load_dotenv()
 Database.db_engine()
 
 app = FastAPI()
-app.include_router(login_router)
 
 # Modelo de Token
 ALGORITHM = "HS256"
@@ -43,10 +42,9 @@ app.add_middleware(
     allow_headers=["*"],  # Cabeçalhos permitidos
 )
 
-#app.include_router(router)
+app.include_router(login_router)
 app.include_router(mih_patients_router)
 app.include_router(mih_router)
 app.include_router(mih_tracking_records_router)
-#app.include_router(medications_user_router)
 app.include_router(mih_user_router)
 app.include_router(images_router)
