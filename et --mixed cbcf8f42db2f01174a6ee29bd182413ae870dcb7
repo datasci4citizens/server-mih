@@ -1,0 +1,246 @@
+[33mcommit cbcf8f42db2f01174a6ee29bd182413ae870dcb7[m[33m ([m[1;36mHEAD -> [m[1;32mdevelop[m[33m, [m[1;31morigin/develop[m[33m)[m
+Author: Gabriel <g281770@dac.unicamp.br>
+Date:   Wed Dec 4 10:34:21 2024 -0300
+
+    fixed
+
+[33mcommit ff25d7c8521dc4e9cded866df8b1c1db212276b5[m
+Author: Gabriel <g281770@dac.unicamp.br>
+Date:   Tue Dec 3 09:32:47 2024 -0300
+
+    some alterations
+
+[33mcommit 82527222c887057fe0790b81da675012f290bc2d[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 29 15:02:09 2024 -0300
+
+    Dados do banco user me
+
+[33mcommit c16e0958dfa919e0489444a8b387806faf470762[m
+Merge: d8bac1f 57551a3
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 29 14:51:43 2024 -0300
+
+    Merge branch 'develop' of https://github.com/datasci4citizens/server-mih into develop
+
+[33mcommit d8bac1f395be5dae30a59fe76580261c37aff772[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 29 14:46:31 2024 -0300
+
+    Correção com gitignore
+
+[33mcommit c2eefd439dc981fd95d66080724847d79a390028[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 29 14:38:43 2024 -0300
+
+    Sem gitignore
+
+[33mcommit 57551a3969ba86aab32b110ad3b28eed1a83e246[m
+Author: Gabriel <g281770@dac.unicamp.br>
+Date:   Fri Nov 29 12:38:45 2024 -0300
+
+    server session alterations
+
+[33mcommit 2956e709b41b33484b4158fab4385fd0e552b60b[m
+Author: Gabriel <g281770@dac.unicamp.br>
+Date:   Thu Nov 28 17:07:36 2024 -0300
+
+    alterações
+
+[33mcommit 7d6ac418bdb718470d481919cce490734bdbc43a[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 28 16:13:12 2024 -0300
+
+    request fields Name
+
+[33mcommit 1b5aa615938a044c5a6848ecd685ea244e9554d3[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 28 16:11:27 2024 -0300
+
+    Add name
+
+[33mcommit 17191e02977de6582b8cddb1ce8bc54305babec2[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 28 15:32:19 2024 -0300
+
+    Autenticação Nova
+
+[33mcommit af3f9f18ba6c9ecfd831b93d4b6d2cdaf13ca403[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 28 14:27:53 2024 -0300
+
+    "Aunteticação"
+
+[33mcommit d4e24959936a99bdec603a55fc71302f0978fbf1[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Mon Nov 25 13:33:24 2024 -0300
+
+    "API de Imagens"
+
+[33mcommit 91f8c53144b4db1277bc53cd9de3add1ebabee21[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 10:19:50 2024 -0300
+
+    "specialistObservations no update"
+
+[33mcommit 185b6f3fc3572037b958f273327a82bc3a502bf7[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 09:53:36 2024 -0300
+
+    "Patient arrumado"
+
+[33mcommit 5a5484018663198dc386094527342fa67f898636[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 09:32:05 2024 -0300
+
+    "is_allowed não obrigatório"
+
+[33mcommit ec1aa7f558a1afc35471f9f8a2029dda442607d0[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 09:28:23 2024 -0300
+
+    "Excluindo CLIENT_ID"
+
+[33mcommit 3d8dc6b401de7425de195c4af9c357a8bc12bcdd[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 03:27:39 2024 -0300
+
+    "AUtenticacao e mudanças no mih"
+
+[33mcommit 1bd4c13de4d0b03a3bf8bb663a36456870209834[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 03:18:14 2024 -0300
+
+    Autenticacao e mih
+
+[33mcommit 5712485b0a6335abcce4f252dbea6f10b0424146[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 03:12:13 2024 -0300
+
+    "Autenticação e mudanças no mih"
+
+[33mcommit b497c15a4e00a8cae5992fbef825bd9e574a5f8f[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 22 02:59:32 2024 -0300
+
+    "Autenticação e Correção do MIh"
+
+[33mcommit cea2202a886446c19718c1afdf67c72e2892749d[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 14 22:51:25 2024 -0300
+
+    Paginação para mih não diagnosticados
+
+[33mcommit 8790609a6ad8858ee1843df0c0780889fdf8be13[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Nov 14 22:28:56 2024 -0300
+
+    Sessão e Autenticacao
+
+[33mcommit 9a8281221c9b1d687da0a91cf1f289e1c0fdaa6a[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 8 00:55:54 2024 -0300
+
+    Pegar mih não diagnosticado e patient_id para o mih
+
+[33mcommit 8da121addcce560d667cb720caee99335e99af54[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Mon Nov 4 23:28:55 2024 -0300
+
+    Função para pegar paciente por user id
+
+[33mcommit 1d2452b625445e339996fd32b11293e4dce2cb22[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Nov 1 16:18:39 2024 -0300
+
+    "Novas funções"
+
+[33mcommit d783dfb5df8e0dc0d07cc8d077754f6082a747d6[m[33m ([m[1;32mmain[m[33m)[m
+Author: MylenaRoberta <my.roberta.9@gmail.com>
+Date:   Wed Oct 23 21:16:28 2024 -0300
+
+    fix (docker): main file name
+
+[33mcommit 49c80b6de15283d5163c325d5c76357513e4c28c[m
+Merge: beca1ad 5835fd1
+Author: Mylena Roberta <63478564+MylenaRoberta@users.noreply.github.com>
+Date:   Wed Oct 23 09:32:16 2024 -0300
+
+    Merge pull request #1 from datasci4citizens/feat/dockerfile
+    
+    feat (docker): add Dockerfile
+
+[33mcommit 5835fd141014647bf0664358705b1736760fe0b6[m
+Author: MylenaRoberta <my.roberta.9@gmail.com>
+Date:   Fri Oct 18 13:20:55 2024 -0300
+
+    feat (docker): add Dockerfile
+
+[33mcommit beca1ad5b303816e457b8f2a70c9d8df37499785[m
+Merge: 3edf7de 917e0bc
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Mon Oct 14 10:09:37 2024 -0300
+
+    Merge branch 'main' of https://github.com/datasci4citizens/server-mih
+
+[33mcommit 3edf7de5102dc38c8c3588d56679dbfd15572be1[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Mon Oct 14 10:05:09 2024 -0300
+
+    Deletar em cascata pronto
+
+[33mcommit 8a6d3b443bc1b2f48a6a8805abb9871ad50a101e[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Oct 4 14:48:04 2024 -0300
+
+    "Novo Commit"
+
+[33mcommit ea34ed057ac24dd97c7a83fe5986fb1b3bd6ec74[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Oct 4 14:44:32 2024 -0300
+
+    Novo commit
+
+[33mcommit 917e0bc9689a533b758ba837e24352d0ba07ac7e[m
+Author: Eduardo Rodrigues L Neto <66165355+Loure404@users.noreply.github.com>
+Date:   Thu Oct 3 01:35:53 2024 -0300
+
+    Update schema_mih.py
+
+[33mcommit ca260d8b55d2141223c58cc5b1aa68cc7721d220[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Thu Oct 3 01:34:38 2024 -0300
+
+    Arrumando as relações
+
+[33mcommit 63e18aea5f77b5edf3aa04a0d1aac3503dccbcdd[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Sep 27 08:21:45 2024 -0300
+
+    Migrações OK e arrumando User
+
+[33mcommit eaba7897fa927d541f9b438cc361a5826dc05e92[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Sep 27 08:21:08 2024 -0300
+
+    Migrações OK e Arrumando o User
+
+[33mcommit 521a406f90c102fefa9047bb260b596f676c975b[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Wed Sep 25 10:14:03 2024 -0300
+
+    API para responsavel (User)
+
+[33mcommit 22813c876060ceda3a8c40106289fa87036634a5[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Sep 20 10:49:41 2024 -0300
+
+    Mudanças no CRUD e criação de um ambiente virtual
+
+[33mcommit 2679897c5a46f6812afe7e93974a1a01ca08b4bc[m
+Author: Eduardo Rodrigues Lourenço Neto <eduardo1.l.lourenco@gmail.com>
+Date:   Fri Sep 20 07:09:56 2024 -0300
+
+    Criação de novos CRUDS
+
+[33mcommit 33138707b7cd8b
