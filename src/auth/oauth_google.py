@@ -90,6 +90,8 @@ async def callback_uri(request: Request, session: Session = Depends(Database.get
     authorization_response = str(request.url)
 
     flow.fetch_token(authorization_response=authorization_response)
+    credentials = flow.credentials
+    request.session['credentials'] = credentials_to_dict(credentials)
 
     user_info=None
     try:
@@ -134,3 +136,11 @@ async def me(
         raise HTTPException(status_code=404, detail="User not found")
     
     return user  # Retorna o usuário encontrado no banco de dados
+
+def credentials_to_dict(credentials):
+  return {'token': credentials.token,
+          'refresh_token': credentials.refresh_token,
+          'token_uri': credentials.token_uri,
+          'client_id': credentials.client_id,
+          'client_secret': credentials.client_secret,
+          'scopes': credentials.scopes}
