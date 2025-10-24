@@ -13,8 +13,8 @@ This project embraces the server implementation for the MIH application.
 
 ### 0 - Clone the repository
 ~~~
-git clone https://github.com/seu-usuario/mih-backend.git
-cd mih-backend
+git clone https://github.com/seu-usuario/server-mih.git
+cd server-mih
 ~~~
 
 ### 1 - Start the PostgreSQL database with docker
