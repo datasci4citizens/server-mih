@@ -84,7 +84,7 @@ async def me(
     if not user_id:
         raise HTTPException(status_code=401, detail="User unauthenticated")
 
-    user_id = request.session.get("id")  # Pega o e-mail da sessão
+    user_id = request.session.get("id")  
     
     user = session.get(User, user_id)
     if not user:
