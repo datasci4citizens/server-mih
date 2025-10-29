@@ -36,7 +36,7 @@ app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_ag
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONT_URL")],  # Especifique as origens permitidas
+    allow_origins=os.getenv("FRONT_URL").split(',') if os.getenv("FRONT_URL") else [],  # Especifique as origens permitidas
     allow_credentials=True,  # Permitir envio de cookies ou credenciais
     allow_methods=["*"],  # Métodos HTTP permitidos
     allow_headers=["*"],  # Cabeçalhos permitidos
