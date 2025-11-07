@@ -32,7 +32,7 @@ app = FastAPI()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600, same_site="none", https_only=True)
 
 app.add_middleware(
     CORSMiddleware,
