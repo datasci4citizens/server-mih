@@ -6,3 +6,6 @@ docker-compose.yml
 client_secret.json
 secrets.env
 requirements.txt
+
+# SSL certificates for development
+certs/

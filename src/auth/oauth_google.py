@@ -72,6 +72,46 @@ async def google_login(
 
     return user
 
+@login_router.post('/auth/login/google/native', response_model=UserRead)
+async def google_login_native(
+    data: GoogleLoginRequest,
+    request: Request,
+    session: Session = Depends(Database.get_session)
+):
+    # No login nativo, o frontend já envia o access_token diretamente.
+    access_token = data.code
+
+    # 1. Usar o access_token para obter informações do usuário
+    user_info_response = requests.get(
+        GOOGLE_USER_INFO_URL,
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    if not user_info_response.ok:
+        raise HTTPException(status_code=400, detail="Falha ao obter informações do usuário do Google com o token fornecido")
+
+    user_info = user_info_response.json()
+    email = user_info.get("email")
+    name = user_info.get("name")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email não encontrado nas informações do usuário do Google")
+
+    # 2. Encontrar ou criar o usuário no seu banco de dados
+    statement = select(User).where(User.email == email)
+    user = session.exec(statement).first()
+    if user is None:
+        user = User(email=email, name=name)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    # 3. Criar a sessão no backend
+    request.session['id'] = user.id
+    request.session['email'] = user.email
+    request.session['name'] = user.name
+
+    return user
+
 # endpoint 'protegido' para buscar o usario ativo atualmente usando o token dos cookies
 @login_router.get("/user/me")
 async def me(
@@ -79,15 +119,19 @@ async def me(
     current_user: dict = Depends(AuthService.get_current_user),  # Obtém o usuário autenticado
     session: Session = Depends(Database.get_session)  # Conexão com o banco de dados
 ):
-
     user_id = request.session.get("id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="User unauthenticated")
+    print(f"Backend /user/me: User ID from session: {user_id}")
 
-    user_id = request.session.get("id")  
-    
     user = session.get(User, user_id)
+    print(f"Backend /user/me: User found in DB: {user is not None}")
     if not user:
+        print(f"Backend /user/me: Raising 404 HTTPException for user_id: {user_id}")
         raise HTTPException(status_code=404, detail="User not found")
     
     return user  # Retorna o usuário encontrado no banco de dados
+
+
+@login_router.post('/auth/logout')
+async def logout(request: Request):
+    request.session.clear()
+    return {'message': 'Logout successful'}
