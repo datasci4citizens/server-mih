@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
@@ -21,10 +24,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.oauth_google import login_router
 
 
-from dotenv import load_dotenv
 from fastapi import HTTPException
 
-load_dotenv()
+
 
 Database.db_engine()
 

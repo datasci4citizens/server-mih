@@ -120,10 +120,8 @@ async def me(
     session: Session = Depends(Database.get_session)  # Conexão com o banco de dados
 ):
     user_id = request.session.get("id")
-    print(f"Backend /user/me: User ID from session: {user_id}")
 
     user = session.get(User, user_id)
-    print(f"Backend /user/me: User found in DB: {user is not None}")
     if not user:
         print(f"Backend /user/me: Raising 404 HTTPException for user_id: {user_id}")
         raise HTTPException(status_code=404, detail="User not found")
