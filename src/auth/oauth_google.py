@@ -9,7 +9,7 @@ import os
 
 login_router = APIRouter()
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+# os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' # Required for local development with HTTP. MUST be disabled in production environments for security.
 
 GOOGLE_ACCESS_TOKEN_OBTAIN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
