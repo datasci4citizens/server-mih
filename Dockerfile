@@ -9,8 +9,6 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./src /code/app
 
-#ENV PYTHONPATH=/code/app:$PYTHONPATH
+ENV PYTHONPATH=/code/app:$PYTHONPATH
 
-#CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-CMD ["fastapi", "run", "app/main.py", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
