@@ -8,7 +8,7 @@ from fastapi import Request
 
 
 mih_patients_router = APIRouter(
-    dependencies=[Depends(AuthService.get_current_user)]
+    # dependencies=[Depends(AuthService.get_current_user)]
 )
 BASE_URL_PATIENTS = "/patients/"
 

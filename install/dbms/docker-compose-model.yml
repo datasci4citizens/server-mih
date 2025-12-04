@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   db:
     image: postgres
@@ -13,6 +11,19 @@ services:
     ports:
       - "5431:5432"
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+
 volumes:
   postgres-data:
     driver: "local"
@@ -25,4 +36,10 @@ volumes:
     driver_opts:
       type: "none"
       device: "/home/user/data/pgsql/impexp"
+      o: "bind" 
+  minio-data:
+    driver: "local"
+    driver_opts:
+      type: "none"
+      device: "/home/user/data/minio/mih_dev"
       o: "bind" 
