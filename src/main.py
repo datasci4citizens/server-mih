@@ -45,6 +45,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600, same_site="none", https_only=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("FRONT_URL").split(',') if os.getenv("FRONT_URL") else [],  # Especifique as origens permitidas
@@ -52,8 +54,6 @@ app.add_middleware(
     allow_methods=["*"],  # Métodos HTTP permitidos
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "ngrok-skip-browser-warning"],  # Cabeçalhos permitidos
 )
-
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"), max_age=3600, same_site="none", https_only=True)
 
 app.include_router(login_router)
 app.include_router(mih_patients_router)
