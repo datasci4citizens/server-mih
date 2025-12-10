@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres
+    image: postgres:16
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - postgres-impexp:/home
@@ -29,17 +29,17 @@ volumes:
     driver: "local"
     driver_opts:
       type: "none"
-      device: "/home/user/data/pgsql/docker"
+      device: "../../../volumes/pg-data"
       o: "bind" 
   postgres-impexp:
     driver: "local"
     driver_opts:
       type: "none"
-      device: "/home/user/data/pgsql/impexp"
+      device: "../../../volumes/pg-impexp"
       o: "bind" 
   minio-data:
     driver: "local"
     driver_opts:
       type: "none"
-      device: "/home/user/data/minio/mih_dev"
+      device: "../../../volumes/minio"
       o: "bind" 
