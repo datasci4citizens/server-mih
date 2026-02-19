@@ -10,6 +10,7 @@ router.register(r'tracking-records', TrackingRecordViewSet, basename='trackingre
 router.register(r'images', ImageViewSet, basename='image')
 
 urlpatterns = [
+    path('user/me', CurrentUserView.as_view(), name='current-user-compat'),
     path('api/auth/user/', CurrentUserView.as_view(), name='current-user'),
     path('api/auth/token/', ObtainTokenForSessionView.as_view(), name='session-to-jwt'),
     path('api/', include(router.urls)),
