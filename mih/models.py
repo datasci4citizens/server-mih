@@ -54,9 +54,19 @@ class TrackingRecord(models.Model):
 
 
 class Image(models.Model):
-    extension = models.CharField(max_length=10)
+    file = models.FileField(upload_to='images/%Y/%m/%d')
+    extension = models.CharField(max_length=10, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='images')
 
+    def save(self, *args, **kwargs):
+        if self.file and (not self.extension):
+            name = getattr(self.file, 'name', '')
+            if '.' in name:
+                self.extension = name.rsplit('.', 1)[-1].lower()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Image {self.id}.{self.extension}"
+        if self.extension:
+            return f"Image {self.id}.{self.extension}"
+        return f"Image {self.id}"

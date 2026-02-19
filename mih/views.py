@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Patient, Mih, TrackingRecord, Image
 from .serializers import PatientSerializer, MihSerializer, TrackingRecordSerializer, ImageSerializer
 
@@ -29,3 +30,4 @@ class ImageViewSet(viewsets.ModelViewSet):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = (MultiPartParser, FormParser)
