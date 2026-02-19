@@ -1,0 +1,7 @@
+.venv
+*.pyc
+__pycache__/
+server_mih/db.sqlite3
+.venv/
+mih/migrations/__pycache__/
+node_modules/
