@@ -86,14 +86,28 @@ WSGI_APPLICATION = 'server_mih.wsgi.application'
 
 DATABASES = {
     'default': {
-        # Use PostgreSQL if environment variables are provided, otherwise fall back to SQLite
-        'ENGINE': 'django.db.backends.postgresql_psycopg2' if os.getenv('DB_NAME') else 'django.db.backends.sqlite3',
-        'NAME': os.getenv('DB_NAME') or str(BASE_DIR / 'db.sqlite3'),
-        'USER': os.getenv('DB_USER') or '',
-        'PASSWORD': os.getenv('DB_PASSWORD') or '',
-        'HOST': os.getenv('DB_HOST') or '',
-        'PORT': os.getenv('DB_PORT') or '',
+        # Require PostgreSQL configuration via environment variables
+        # This project uses Postgres for production and tests — no SQLite fallback.
+        # Ensure DB_NAME is set in environment before running Django.
+        
     }
+    }
+
+# Enforce Postgres-only configuration
+DB_NAME = os.getenv('DB_NAME')
+if not DB_NAME:
+    raise RuntimeError('DB_NAME environment variable is required. Configure Postgres before running the app.')
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': DB_NAME,
+        'USER': os.getenv('DB_USER', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+    }
+}
 }
 
 
