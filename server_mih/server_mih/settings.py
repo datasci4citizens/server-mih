@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'mih',
+    'social_django',
 ]
 
 MIDDLEWARE = [
@@ -71,6 +72,8 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -83,17 +86,6 @@ WSGI_APPLICATION = 'server_mih.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        # Require PostgreSQL configuration via environment variables
-        # This project uses Postgres for production and tests — no SQLite fallback.
-        # Ensure DB_NAME is set in environment before running Django.
-        
-    }
-    }
-
-# Enforce Postgres-only configuration
 DB_NAME = os.getenv('DB_NAME')
 if not DB_NAME:
     raise RuntimeError('DB_NAME environment variable is required. Configure Postgres before running the app.')
@@ -108,6 +100,30 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+
+# Authentication / Social Auth
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('SOCIAL_AUTH_GOOGLE_OAUTH2_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET')
+
+LOGIN_REDIRECT_URL = '/'  # adjust to frontend route
+LOGOUT_REDIRECT_URL = '/'
+
+# Optional: store extra data in session
+SOCIAL_AUTH_SESSION_EXPIRATION = True
+
+# Django REST Framework defaults (allow session auth for now)
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
 }
 
 
