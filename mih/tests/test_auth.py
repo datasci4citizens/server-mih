@@ -23,3 +23,25 @@ class AuthSessionToJWTTest(TestCase):
         resp = self.client.get('/api/auth/user/')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data.get('username'), 'tester')
+
+    def test_users_upsert_compat(self):
+        self.client.login(username='tester', password='pwd123')
+        payload = {
+            'name': 'Tester Name',
+            'email': 'tester@example.com',
+            'role': 'responsible',
+            'is_allowed': True,
+            'phone_number': '11999999999',
+            'state': 'SP',
+            'city': 'Sao Paulo',
+            'neighborhood': 'Centro',
+            'accept_tcle': True,
+        }
+        resp = self.client.put('/users/', payload, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data.get('role'), 'responsible')
+        self.assertEqual(resp.data.get('name'), 'Tester Name')
+
+        me = self.client.get('/user/me/')
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.data.get('role'), 'responsible')
