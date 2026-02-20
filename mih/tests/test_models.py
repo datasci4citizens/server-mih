@@ -1,16 +1,6 @@
 from django.test import TestCase
 
-from ..models import Patient, Mih
-from ..omop_models import Person, Location
-
-
-class PatientModelTest(TestCase):
-    def test_create_patient_and_mih(self):
-        p = Patient.objects.create(name="João", highFever=True)
-        self.assertEqual(Patient.objects.count(), 1)
-        m = Mih.objects.create(patient=p)
-        self.assertEqual(Mih.objects.count(), 1)
-        self.assertEqual(m.patient.id, p.id)
+from ..omop_models import Person, Location, ConditionOccurrence, Observation
 
 
 class OmopModelsTest(TestCase):
@@ -20,3 +10,10 @@ class OmopModelsTest(TestCase):
         self.assertEqual(Person.objects.count(), 1)
         self.assertEqual(person.location.id, loc.id)
         self.assertEqual(person.person_source_value, "ext-123")
+
+    def test_condition_and_observation(self):
+        person = Person.objects.create(person_source_value="p-1")
+        cond = ConditionOccurrence.objects.create(person=person, condition_concept_id=930001)
+        obs = Observation.objects.create(person=person, observation_concept_id=920002, value_as_string="ok")
+        self.assertEqual(cond.person_id, person.id)
+        self.assertEqual(obs.person_id, person.id)

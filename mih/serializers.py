@@ -1,23 +1,43 @@
 from rest_framework import serializers
-from .models import Patient, Mih, TrackingRecord, Image
+from .models import Image
 
 
-class PatientSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Patient
-        fields = '__all__'
+class PatientSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(required=False, allow_blank=True)
+    birthday = serializers.DateTimeField(required=False, allow_null=True)
+    highFever = serializers.BooleanField(required=False, allow_null=True)
+    premature = serializers.BooleanField(required=False, allow_null=True)
+    deliveryProblems = serializers.BooleanField(required=False, allow_null=True)
+    lowWeight = serializers.BooleanField(required=False, allow_null=True)
+    deliveryType = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    brothersNumber = serializers.IntegerField(required=False, allow_null=True)
+    consultType = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    deliveryProblemsTypes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
-class MihSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Mih
-        fields = '__all__'
+class MihSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    patient = serializers.IntegerField(required=True)
+    start_date = serializers.DateTimeField(required=False, allow_null=True)
+    end_date = serializers.DateTimeField(required=False, allow_null=True)
+    painLevel = serializers.IntegerField(required=False, allow_null=True)
+    sensitivityField = serializers.BooleanField(required=False, allow_null=True)
+    stain = serializers.BooleanField(required=False, allow_null=True)
+    aestheticDiscomfort = serializers.BooleanField(required=False, allow_null=True)
+    userObservations = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    specialistObservations = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    diagnosis = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    photo_id1 = serializers.IntegerField(required=False, allow_null=True)
+    photo_id2 = serializers.IntegerField(required=False, allow_null=True)
+    photo_id3 = serializers.IntegerField(required=False, allow_null=True)
 
 
-class TrackingRecordSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TrackingRecord
-        fields = '__all__'
+class TrackingRecordSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    mih = serializers.IntegerField(required=False, allow_null=True)
+    image_id = serializers.IntegerField(required=False, allow_null=True)
+    observations = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class ImageSerializer(serializers.ModelSerializer):

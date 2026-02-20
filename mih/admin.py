@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Patient, Mih, TrackingRecord, Image
+from .models import Image, UserProfile
 from .omop_models import (
     Person,
     Provider,
@@ -12,24 +12,14 @@ from .omop_models import (
 )
 
 
-@admin.register(Patient)
-class PatientAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'user', 'created_at')
-
-
-@admin.register(Mih)
-class MihAdmin(admin.ModelAdmin):
-    list_display = ('id', 'patient', 'diagnosis', 'created_at')
-
-
-@admin.register(TrackingRecord)
-class TrackingRecordAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mih', 'image_id', 'created_at')
-
-
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
     list_display = ('id', 'extension', 'user', 'created_at')
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'role', 'is_allowed', 'updated_at')
 
 
 @admin.register(Person)
