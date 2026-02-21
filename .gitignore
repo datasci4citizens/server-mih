@@ -6,3 +6,4 @@ server_mih/db.sqlite3
 mih/migrations/__pycache__/
 node_modules/
 server_mih/media/images/
+.env
