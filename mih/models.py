@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from .omop_models import Person, Provider
 
 
 class Image(models.Model):
@@ -41,3 +42,27 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"UserProfile {self.user_id} ({self.role})"
+
+
+class PatientNonClinicalInfos(models.Model):
+    person = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='non_clinical_infos')
+    name = models.CharField(max_length=255, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"PatientNonClinicalInfos {self.person_id}"
+
+
+class ProviderNonClinicalInfos(models.Model):
+    provider = models.OneToOneField(Provider, on_delete=models.CASCADE, related_name='non_clinical_infos')
+    email = models.EmailField(max_length=255, null=True, blank=True)
+    phone_number = models.CharField(max_length=32, null=True, blank=True)
+    is_allowed = models.BooleanField(default=True)
+    accept_tcle = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ProviderNonClinicalInfos {self.provider_id}"

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Image, UserProfile
+from .models import Image, UserProfile, PatientNonClinicalInfos, ProviderNonClinicalInfos
 from .omop_models import (
     Person,
     Provider,
@@ -30,6 +30,16 @@ class PersonAdmin(admin.ModelAdmin):
 @admin.register(Provider)
 class ProviderAdmin(admin.ModelAdmin):
     list_display = ('id', 'provider_name', 'provider_source_value')
+
+
+@admin.register(PatientNonClinicalInfos)
+class PatientNonClinicalInfosAdmin(admin.ModelAdmin):
+    list_display = ('person', 'name', 'user', 'created_at', 'updated_at')
+
+
+@admin.register(ProviderNonClinicalInfos)
+class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'accept_tcle', 'updated_at')
 
 
 @admin.register(ConditionOccurrence)

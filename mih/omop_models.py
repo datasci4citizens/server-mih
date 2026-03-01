@@ -14,6 +14,7 @@ class Location(models.Model):
 class Provider(models.Model):
     provider_name = models.CharField(max_length=255, null=True, blank=True)
     provider_source_value = models.CharField(max_length=255, null=True, blank=True)
+    provider_user_id = models.IntegerField(null=True, blank=True)
     phone = models.CharField(max_length=100, null=True, blank=True)
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
 
@@ -23,9 +24,11 @@ class Provider(models.Model):
 
 class Person(models.Model):
     person_source_value = models.CharField(max_length=512, null=True, blank=True)
+    birth_datetime = models.DateTimeField(null=True, blank=True)
     year_of_birth = models.IntegerField(null=True, blank=True)
     month_of_birth = models.IntegerField(null=True, blank=True)
     day_of_birth = models.IntegerField(null=True, blank=True)
+    gender_concept_id = models.IntegerField(null=True, blank=True)
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):

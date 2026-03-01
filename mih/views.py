@@ -3,7 +3,7 @@ from datetime import datetime
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Image
+from .models import Image, PatientNonClinicalInfos
 from .omop_models import (
     Person,
     Location,
@@ -21,12 +21,13 @@ class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
 
 
 PATIENT_CONCEPTS = {
-    'highFever': 910001,
-    'premature': 910002,
+    'highFever': 437663,
+    'premature': 4272248,
     'deliveryProblems': 910003,
     'lowWeight': 910004,
     'deliveryType': 910005,
     'deliveryProblemsTypes': 910006,
+    'consultType': 910007,
 }
 
 OBS_BROTHERS_NUMBER = 920001
@@ -42,6 +43,20 @@ OBS_MIH_PHOTO_2 = 920010
 OBS_MIH_PHOTO_3 = 920011
 COND_MIH_CASE = 930001
 
+YES_CONCEPT_ID = 4188539
+NO_CONCEPT_ID = 4188540
+
+
+def _to_optional_int(value):
+    if value in (None, ''):
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(value)
+    except Exception:
+        return None
+
 
 def _parse_person_source_value(value):
     if not value:
@@ -55,13 +70,14 @@ def _parse_person_source_value(value):
         return {'name': value}
 
 
-def _set_condition(person, concept_id, enabled):
-    existing = ConditionOccurrence.objects.filter(person=person, condition_concept_id=concept_id)
-    if enabled:
-        if not existing.exists():
-            ConditionOccurrence.objects.create(person=person, condition_concept_id=concept_id)
-    else:
-        existing.delete()
+def _set_observation_bool(person, concept_id, enabled):
+    Observation.objects.filter(person=person, observation_concept_id=concept_id).delete()
+    if enabled is not None:
+        Observation.objects.create(
+            person=person,
+            observation_concept_id=concept_id,
+            value_as_concept_id=YES_CONCEPT_ID if bool(enabled) else NO_CONCEPT_ID,
+        )
 
 
 def _set_observation_number(person, concept_id, value):
@@ -84,8 +100,11 @@ def _set_observation_text(person, concept_id, value):
         )
 
 
-def _get_bool_condition(person, concept_id):
-    return ConditionOccurrence.objects.filter(person=person, condition_concept_id=concept_id).exists()
+def _get_observation_bool(person, concept_id):
+    row = Observation.objects.filter(person=person, observation_concept_id=concept_id).order_by('-id').first()
+    if not row or row.value_as_concept_id is None:
+        return None
+    return row.value_as_concept_id == YES_CONCEPT_ID
 
 
 def _get_observation_number(person, concept_id):
@@ -104,24 +123,32 @@ def _get_observation_text(person, concept_id):
 
 def _serialize_patient(person):
     source = _parse_person_source_value(person.person_source_value)
+    non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
     birthday = None
-    if person.year_of_birth and person.month_of_birth and person.day_of_birth:
+    if person.birth_datetime:
+        birthday = person.birth_datetime.isoformat().replace('+00:00', 'Z')
+    elif person.year_of_birth and person.month_of_birth and person.day_of_birth:
         try:
             birthday = datetime(person.year_of_birth, person.month_of_birth, person.day_of_birth).isoformat() + 'Z'
         except Exception:
             birthday = None
 
-    consult = VisitOccurrence.objects.filter(person=person).order_by('-id').first()
-    consult_type = str(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
+    consult_type = _to_optional_int(_get_observation_text(person, PATIENT_CONCEPTS['consultType']))
+    if consult_type is None:
+        consult = VisitOccurrence.objects.filter(person=person).order_by('-id').first()
+        consult_type = int(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
 
     return {
         'id': person.id,
-        'name': source.get('name'),
+        'name': (non_clinical.name if non_clinical else None) or source.get('name'),
         'birthday': birthday,
-        'highFever': _get_bool_condition(person, PATIENT_CONCEPTS['highFever']),
-        'premature': _get_bool_condition(person, PATIENT_CONCEPTS['premature']),
-        'deliveryProblems': _get_bool_condition(person, PATIENT_CONCEPTS['deliveryProblems']),
-        'lowWeight': _get_bool_condition(person, PATIENT_CONCEPTS['lowWeight']),
+        'user_id': non_clinical.user_id if non_clinical and non_clinical.user_id else None,
+        'created_at': non_clinical.created_at.isoformat().replace('+00:00', 'Z') if non_clinical and non_clinical.created_at else None,
+        'updated_at': non_clinical.updated_at.isoformat().replace('+00:00', 'Z') if non_clinical and non_clinical.updated_at else None,
+        'highFever': _get_observation_bool(person, PATIENT_CONCEPTS['highFever']),
+        'premature': _get_observation_bool(person, PATIENT_CONCEPTS['premature']),
+        'deliveryProblems': _get_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems']),
+        'lowWeight': _get_observation_bool(person, PATIENT_CONCEPTS['lowWeight']),
         'deliveryType': _get_observation_text(person, PATIENT_CONCEPTS['deliveryType']),
         'brothersNumber': _get_observation_number(person, OBS_BROTHERS_NUMBER),
         'consultType': consult_type,
@@ -152,25 +179,31 @@ class PatientViewSet(viewsets.ViewSet):
         meta = {'name': data.get('name')}
         person = Person.objects.create(
             person_source_value=json.dumps(meta),
+            birth_datetime=birthday,
             year_of_birth=birthday.year if birthday else None,
             month_of_birth=birthday.month if birthday else None,
             day_of_birth=birthday.day if birthday else None,
+            gender_concept_id=0,
             location=location,
         )
 
-        _set_condition(person, PATIENT_CONCEPTS['highFever'], bool(data.get('highFever')))
-        _set_condition(person, PATIENT_CONCEPTS['premature'], bool(data.get('premature')))
-        _set_condition(person, PATIENT_CONCEPTS['deliveryProblems'], bool(data.get('deliveryProblems')))
-        _set_condition(person, PATIENT_CONCEPTS['lowWeight'], bool(data.get('lowWeight')))
+        PatientNonClinicalInfos.objects.create(
+            person=person,
+            name=data.get('name'),
+            user_id=data.get('user_id'),
+        )
+
+        _set_observation_bool(person, PATIENT_CONCEPTS['highFever'], data.get('highFever'))
+        _set_observation_bool(person, PATIENT_CONCEPTS['premature'], data.get('premature'))
+        _set_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems'], data.get('deliveryProblems'))
+        _set_observation_bool(person, PATIENT_CONCEPTS['lowWeight'], data.get('lowWeight'))
         _set_observation_text(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'))
         _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
         _set_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes'], data.get('deliveryProblemsTypes'))
         consult_type = data.get('consultType')
+        _set_observation_text(person, PATIENT_CONCEPTS['consultType'], _to_optional_int(consult_type))
         if consult_type not in (None, ''):
-            try:
-                concept = int(consult_type)
-            except Exception:
-                concept = None
+            concept = _to_optional_int(consult_type)
             VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
 
         return Response(_serialize_patient(person), status=status.HTTP_201_CREATED)
@@ -192,22 +225,32 @@ class PatientViewSet(viewsets.ViewSet):
         if 'birthday' in data:
             birthday = data.get('birthday')
             if birthday is None:
+                person.birth_datetime = None
                 person.year_of_birth = None
                 person.month_of_birth = None
                 person.day_of_birth = None
             else:
+                person.birth_datetime = birthday
                 person.year_of_birth = birthday.year
                 person.month_of_birth = birthday.month
                 person.day_of_birth = birthday.day
+
         person.save()
 
+        non_clinical, _ = PatientNonClinicalInfos.objects.get_or_create(person=person)
+        if 'name' in data:
+            non_clinical.name = data.get('name')
+        if 'user_id' in data:
+            non_clinical.user_id = data.get('user_id')
+        non_clinical.save()
+
         for field, concept in PATIENT_CONCEPTS.items():
-            if field in ('deliveryType', 'deliveryProblemsTypes'):
+            if field in ('deliveryType', 'deliveryProblemsTypes', 'consultType'):
                 if field in data:
                     _set_observation_text(person, concept, data.get(field))
             else:
                 if field in data:
-                    _set_condition(person, concept, bool(data.get(field)))
+                    _set_observation_bool(person, concept, data.get(field))
 
         if 'brothersNumber' in data:
             _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
@@ -216,10 +259,7 @@ class PatientViewSet(viewsets.ViewSet):
             VisitOccurrence.objects.filter(person=person).delete()
             consult_type = data.get('consultType')
             if consult_type not in (None, ''):
-                try:
-                    concept = int(consult_type)
-                except Exception:
-                    concept = None
+                concept = _to_optional_int(consult_type)
                 VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
 
         return Response(_serialize_patient(person))

@@ -3,7 +3,39 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import UserProfile
+from .models import UserProfile, ProviderNonClinicalInfos
+from .omop_models import Provider, Location
+
+
+def _sync_specialist_omop(user, profile):
+    location, _ = Location.objects.get_or_create(
+        city=profile.city,
+        state=profile.state,
+        address_1=profile.neighborhood,
+    )
+
+    provider, _ = Provider.objects.update_or_create(
+        id=user.id,
+        defaults={
+            'provider_name': getattr(user, 'first_name', None) or getattr(user, 'username', None),
+            'provider_source_value': getattr(user, 'email', None),
+            'provider_user_id': user.id,
+            'location': location,
+            'phone': profile.phone_number,
+        },
+    )
+
+    ProviderNonClinicalInfos.objects.update_or_create(
+        provider=provider,
+        defaults={
+            'email': getattr(user, 'email', None),
+            'phone_number': profile.phone_number,
+            'is_allowed': profile.is_allowed,
+            'accept_tcle': profile.accept_tcle,
+        },
+    )
+
+    return provider
 
 
 class CurrentUserView(APIView):
@@ -12,11 +44,13 @@ class CurrentUserView(APIView):
     def get(self, request):
         user = request.user
         profile, _ = UserProfile.objects.get_or_create(user=user)
+        provider = _sync_specialist_omop(user, profile) if profile.role == UserProfile.ROLE_SPECIALIST else None
         return Response({
             'id': user.id,
             'name': getattr(user, 'first_name', None) or getattr(user, 'username', None),
             'username': getattr(user, 'username', None),
             'email': getattr(user, 'email', None),
+            'specialist_id': provider.id if provider else None,
             'role': profile.role,
             'is_allowed': profile.is_allowed,
             'phone_number': profile.phone_number,
@@ -62,10 +96,13 @@ class UpsertCurrentUserProfileView(APIView):
             profile.accept_tcle = bool(payload.get('accept_tcle'))
         profile.save()
 
+        provider = _sync_specialist_omop(user, profile) if profile.role == UserProfile.ROLE_SPECIALIST else None
+
         return Response({
             'id': user.id,
             'name': user.first_name,
             'email': user.email,
+            'specialist_id': provider.id if provider else None,
             'role': profile.role,
             'is_allowed': profile.is_allowed,
             'phone_number': profile.phone_number,
