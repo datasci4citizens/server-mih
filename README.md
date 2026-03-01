@@ -158,20 +158,61 @@ Armazenamento local (dev): `media/images/YYYY/MM/DD/`
 
 ## 6. Mapeamento Detalhado FastAPI → OMOP
 
-No servidor anterior em FastAPI, os dados clínicos eram centralizados nas tabelas `Patient`, `Mih` e `TrackingRecord`. Na migração para Django, essas tabelas deixaram de ser o núcleo de persistência e o backend passou a gravar dados clínicos em estruturas OMOP, principalmente `Person`, `ConditionOccurrence`, `Observation`, `Measurement`, `VisitOccurrence` e `FactRelationship`. A ideia foi separar melhor pessoa, eventos clínicos, observações e relacionamentos, aderindo ao padrão OMOP sem quebrar o contrato HTTP já consumido pelo frontend.
+O backend persiste os dados clínicos nas estruturas OMOP `Person`, `ConditionOccurrence`, `Observation`, `Measurement`, `VisitOccurrence` e `FactRelationship`, com a tradução de payloads concentrada em `mih/views.py`.
 
-Na prática, tudo que era identidade e cadastro clínico básico de paciente passou a nascer em `Person`: o identificador legado ficou representado por `Person.id`, o nome foi preservado em `person_source_value` (em metadado JSON), e a data de nascimento foi decomposta em `year_of_birth`, `month_of_birth` e `day_of_birth`, como esperado no modelo. Os indicadores booleanos do histórico (como febre alta, prematuridade, problemas no parto e baixo peso) foram convertidos em ocorrências em `ConditionOccurrence`, usando conceitos técnicos internos (`910001` a `910004`). Já os valores descritivos, como tipo de parto e tipos de problemas no parto, migraram para `Observation.value_as_string` com os conceitos `910005` e `910006`, enquanto `brothersNumber` passou para `Observation.value_as_number` (`920001`). O tipo de consulta (`consultType`) foi modelado em `VisitOccurrence.visit_concept_id`, porque semanticamente representa um evento de atendimento.
+Para paciente, `Person` representa identidade clínica base (`id`, `person_source_value`, `year_of_birth`, `month_of_birth`, `day_of_birth`, `birth_datetime`, `gender_concept_id`). Os indicadores clínicos (`highFever`, `premature`, `deliveryProblems`, `lowWeight`) são gravados em `Observation` com `observation_concept_id` clínico e `value_as_concept_id` (`YES`/`NO`). Campos categóricos (`deliveryType`, `consultType`) usam `Observation` com conceito da pergunta em `observation_concept_id` e conceito da resposta em `value_as_concept_id`. `brothersNumber` é persistido em `Observation.value_as_number`.
 
-O antigo registro de MIH foi reinterpretado como episódio clínico e, por isso, cada entrada virou uma ocorrência em `ConditionOccurrence` com `condition_concept_id=930001`. As datas de início e fim do registro passaram para `condition_start_date` e `condition_end_date`. A intensidade de dor (`painLevel`) foi mapeada para `Measurement.value_as_number` com `measurement_concept_id=930001`, já que se trata de medida clínica numérica. Campos como sensibilidade, mancha e desconforto estético foram para `Observation.value_as_concept_id` (`920006`, `920007`, `920008`) para representar booleanos de forma codificada; notas do responsável, notas do especialista e diagnóstico foram para `Observation.value_as_string` (`920003`, `920004`, `920005`); e as referências de imagem (`photo_id1`, `photo_id2`, `photo_id3`) foram armazenadas como número em `Observation.value_as_number` (`920009`, `920010`, `920011`).
+ Para MIH, o registro é representado como episódio clínico em `ConditionOccurrence` com `condition_concept_id=44783854` (Molar incisor hypomineralization). As datas de início e fim do registro são persistidas em `condition_start_date` e `condition_end_date`. A intensidade de dor (`painLevel`) é mapeada para `Measurement.value_as_number` com `measurement_concept_id=43055141` (escala numérica de dor 0–10). Sensibilidade e mancha são representadas em `Observation.value_as_concept_id` usando os conceitos clínicos `4247583` e `440758`, respectivamente, com resposta booleana codificada (`YES`/`NO`). O campo de desconforto estético permanece com conceito local de observação por ausência de um único `concept_id` OMOP padrão para essa pergunta específica. Notas do responsável, notas do especialista e diagnóstico seguem em `Observation.value_as_string`, e as referências de imagem (`photo_id1`, `photo_id2`, `photo_id3`) seguem em `Observation.value_as_number` com conceito local de aplicação.
 
-No caso de `TrackingRecord`, o conteúdo textual de acompanhamento foi para `Observation` com `observation_concept_id=920002`, e o `image_id` ficou em `value_as_number` da própria observação. O vínculo entre esse acompanhamento e o episódio de MIH correspondente deixou de ser uma FK direta da tabela legada e passou a ser representado via `FactRelationship`, mantendo a ligação entre fatos clínicos sem violar a estrutura do OMOP.
+Para acompanhamento (`tracking-records`), o texto é gravado em `Observation` (`observation_concept_id=920002`), `image_id` em `value_as_number` e o vínculo com o caso MIH é representado por `FactRelationship`.
 
-Mesmo com a persistência OMOP, a API foi mantida com camada de compatibilidade em `mih/views.py`: o backend traduz payloads de entrada/saída para formatos próximos aos legados, para permitir evolução incremental do frontend sem exigir uma troca total de contrato em uma única etapa.
+### 6.1 Padrão adotado para IDs OMOP
+
+O padrão adotado para `concept_id` foi:
+
+- **priorizar IDs OMOP oficiais** (OHDSI Athena) quando há conceito clínico claro e estável;
+- **separar conceito da pergunta e conceito da resposta** em campos categóricos;
+- **usar conceitos custom locais** somente quando não há um único conceito OMOP padrão para a pergunta de negócio.
+
+Fonte principal dos IDs oficiais: **OHDSI Athena** (`https://athena.ohdsi.org`).
+
+Mapeamento adotado no backend (`mih/views.py`):
+
+- `highFever` → `44810013` (`Observation`)
+- `premature` → `4272248` (`Observation`)
+- `deliveryProblems` → `43530950` (`Observation`)
+- `lowWeight` → `4171115` (`Observation`)
+- `deliveryType` (conceito-pergunta) → `4145318` (`Observation`)
+- `brothersNumber` (conceito-pergunta) → `4072485` (`Observation`)
+- `mih` (condição principal) → `44783854` (`ConditionOccurrence`)
+- `painLevel` (escala 0–10) → `43055141` (`Measurement`)
+- `sensitivityField` → `4247583` (`Observation`)
+- `stain` → `440758` (`Observation`)
+- `YES` / `NO` (booleanos) → `4188539` / `4188540` (`value_as_concept_id`)
+
+Valores categóricos utilizados:
+
+- `deliveryType=cesarean` → `4015701`
+- `deliveryType=normal` → `4125611`
+- `consultType=public` → `44804377`
+- `consultType=private` → `44803901`
+
+Conceitos que permanecem **custom locais** por ausência de ID OMOP único para a pergunta de negócio:
+
+- `deliveryProblemsTypes` (conceito-pergunta)
+- `consultType` (conceito-pergunta)
+- `aestheticDiscomfort` (conceito-pergunta de MIH)
+- `userObservations`, `specialistObservations` e `diagnosis` em texto livre
+- `photo_id1`, `photo_id2`, `photo_id3` como referência técnica de mídia
+
+Observação importante: quando houver atualização oficial do dicionário de mapeamento do MolarCheck com novos `concept_id`, os valores locais custom devem ser substituídos e versionados em migration dedicada.
 
 ## 7. Modelos Fora do OMOP (Suporte de Aplicação)
 
 - `UserProfile`: perfil de usuário, role e dados de autorização
 - `Image`: arquivo enviado pelo usuário e metadados de upload
+- `PatientNonClinicalInfos`: metadados não clínicos do paciente para suporte de contrato da API
+- `ProviderNonClinicalInfos`: metadados não clínicos do especialista para suporte de autorização e contato
 
 Esses modelos continuam fora do OMOP por serem dados de infraestrutura/aplicação, não eventos clínicos padronizados.
 

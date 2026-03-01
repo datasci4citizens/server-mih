@@ -21,30 +21,41 @@ class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
 
 
 PATIENT_CONCEPTS = {
-    'highFever': 437663,
+    'highFever': 44810013,
     'premature': 4272248,
-    'deliveryProblems': 910003,
-    'lowWeight': 910004,
-    'deliveryType': 910005,
+    'deliveryProblems': 43530950,
+    'lowWeight': 4171115,
+    'deliveryType': 4145318,
     'deliveryProblemsTypes': 910006,
     'consultType': 910007,
 }
 
-OBS_BROTHERS_NUMBER = 920001
+OBS_BROTHERS_NUMBER = 4072485
 OBS_TRACKING_TEXT = 920002
 OBS_MIH_USER_NOTES = 920003
 OBS_MIH_SPECIALIST_NOTES = 920004
 OBS_MIH_DIAGNOSIS_TEXT = 920005
-OBS_MIH_SENSITIVITY = 920006
-OBS_MIH_STAIN = 920007
+OBS_MIH_SENSITIVITY = 4247583
+OBS_MIH_STAIN = 440758
 OBS_MIH_AESTHETIC = 920008
 OBS_MIH_PHOTO_1 = 920009
 OBS_MIH_PHOTO_2 = 920010
 OBS_MIH_PHOTO_3 = 920011
-COND_MIH_CASE = 930001
+COND_MIH_CASE = 44783854
+MEAS_MIH_PAIN_LEVEL = 43055141
 
 YES_CONCEPT_ID = 4188539
 NO_CONCEPT_ID = 4188540
+
+DELIVERY_TYPE_VALUE_MAP = {
+    'cesarean': 4015701,
+    'normal': 4125611,
+}
+
+CONSULT_TYPE_VALUE_MAP = {
+    'public': 44804377,
+    'private': 44803901,
+}
 
 
 def _to_optional_int(value):
@@ -56,6 +67,29 @@ def _to_optional_int(value):
         return int(value)
     except Exception:
         return None
+
+
+def _set_observation_choice(person, concept_id, value, value_map):
+    Observation.objects.filter(person=person, observation_concept_id=concept_id).delete()
+    if value in (None, ''):
+        return
+    normalized = str(value).strip().lower()
+    concept_value = value_map.get(normalized)
+    if concept_value is None:
+        return
+    Observation.objects.create(
+        person=person,
+        observation_concept_id=concept_id,
+        value_as_concept_id=concept_value,
+    )
+
+
+def _get_observation_choice(person, concept_id, value_map):
+    row = Observation.objects.filter(person=person, observation_concept_id=concept_id).order_by('-id').first()
+    if not row or row.value_as_concept_id is None:
+        return None
+    reverse = {v: k for k, v in value_map.items()}
+    return reverse.get(int(row.value_as_concept_id))
 
 
 def _parse_person_source_value(value):
@@ -133,10 +167,13 @@ def _serialize_patient(person):
         except Exception:
             birthday = None
 
-    consult_type = _to_optional_int(_get_observation_text(person, PATIENT_CONCEPTS['consultType']))
+    consult_choice = _get_observation_choice(person, PATIENT_CONCEPTS['consultType'], CONSULT_TYPE_VALUE_MAP)
+    consult_type = consult_choice
+    if consult_type is None:
+        consult_type = _get_observation_text(person, PATIENT_CONCEPTS['consultType'])
     if consult_type is None:
         consult = VisitOccurrence.objects.filter(person=person).order_by('-id').first()
-        consult_type = int(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
+        consult_type = str(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
 
     return {
         'id': person.id,
@@ -149,7 +186,7 @@ def _serialize_patient(person):
         'premature': _get_observation_bool(person, PATIENT_CONCEPTS['premature']),
         'deliveryProblems': _get_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems']),
         'lowWeight': _get_observation_bool(person, PATIENT_CONCEPTS['lowWeight']),
-        'deliveryType': _get_observation_text(person, PATIENT_CONCEPTS['deliveryType']),
+        'deliveryType': _get_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], DELIVERY_TYPE_VALUE_MAP) or _get_observation_text(person, PATIENT_CONCEPTS['deliveryType']),
         'brothersNumber': _get_observation_number(person, OBS_BROTHERS_NUMBER),
         'consultType': consult_type,
         'deliveryProblemsTypes': _get_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes']),
@@ -197,11 +234,11 @@ class PatientViewSet(viewsets.ViewSet):
         _set_observation_bool(person, PATIENT_CONCEPTS['premature'], data.get('premature'))
         _set_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems'], data.get('deliveryProblems'))
         _set_observation_bool(person, PATIENT_CONCEPTS['lowWeight'], data.get('lowWeight'))
-        _set_observation_text(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'))
+        _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
         _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
         _set_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes'], data.get('deliveryProblemsTypes'))
         consult_type = data.get('consultType')
-        _set_observation_text(person, PATIENT_CONCEPTS['consultType'], _to_optional_int(consult_type))
+        _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], consult_type, CONSULT_TYPE_VALUE_MAP)
         if consult_type not in (None, ''):
             concept = _to_optional_int(consult_type)
             VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
@@ -245,12 +282,18 @@ class PatientViewSet(viewsets.ViewSet):
         non_clinical.save()
 
         for field, concept in PATIENT_CONCEPTS.items():
-            if field in ('deliveryType', 'deliveryProblemsTypes', 'consultType'):
+            if field in ('deliveryProblemsTypes',):
                 if field in data:
                     _set_observation_text(person, concept, data.get(field))
             else:
                 if field in data:
                     _set_observation_bool(person, concept, data.get(field))
+
+        if 'deliveryType' in data:
+            _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
+
+        if 'consultType' in data:
+            _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], data.get('consultType'), CONSULT_TYPE_VALUE_MAP)
 
         if 'brothersNumber' in data:
             _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
@@ -299,7 +342,7 @@ def _get_mih_observation(condition, concept_id):
 
 
 def _serialize_mih(condition):
-    measurement = Measurement.objects.filter(person=condition.person, measurement_concept_id=COND_MIH_CASE).order_by('-id').first()
+    measurement = Measurement.objects.filter(person=condition.person, measurement_concept_id=MEAS_MIH_PAIN_LEVEL).order_by('-id').first()
 
     def bool_from(concept):
         row = _get_mih_observation(condition, concept)
@@ -374,7 +417,7 @@ class MihViewSet(viewsets.ViewSet):
         if data.get('painLevel') is not None:
             Measurement.objects.create(
                 person=person,
-                measurement_concept_id=COND_MIH_CASE,
+                measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
                 value_as_number=float(data.get('painLevel')),
                 measurement_date=data.get('start_date'),
             )
@@ -407,11 +450,11 @@ class MihViewSet(viewsets.ViewSet):
         row.save()
 
         if 'painLevel' in data:
-            Measurement.objects.filter(person=row.person, measurement_concept_id=COND_MIH_CASE).delete()
+            Measurement.objects.filter(person=row.person, measurement_concept_id=MEAS_MIH_PAIN_LEVEL).delete()
             if data.get('painLevel') is not None:
                 Measurement.objects.create(
                     person=row.person,
-                    measurement_concept_id=COND_MIH_CASE,
+                    measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
                     value_as_number=float(data.get('painLevel')),
                     measurement_date=row.condition_start_date,
                 )
