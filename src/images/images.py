@@ -16,7 +16,6 @@ class Images:
             secret_key=os.getenv("MINIO_SECRET_KEY") or "",
             secure=(os.getenv("MINIO_SECURE") or "true").lower() == "true", # For dev only
         )
-        print((os.getenv("MINIO_SECURE") or "false").lower() == "true")
 
     # Singleton instance attribute
     _instance = None
