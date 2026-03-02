@@ -216,3 +216,55 @@ Observação importante: quando houver atualização oficial do dicionário de m
 
 Esses modelos continuam fora do OMOP por serem dados de infraestrutura/aplicação, não eventos clínicos padronizados.
 
+## 8. Guia de Rotas e Endpoints
+
+Base local padrão: `http://127.0.0.1:8000`
+
+### 8.1 Rotas de autenticação e sessão
+
+- `GET /user/me/` — retorna usuário autenticado (compatibilidade com frontend legado).
+- `PUT /users/` — cria/atualiza dados de perfil do usuário autenticado.
+- `GET /api/auth/user/` — retorna usuário autenticado (rota API equivalente ao `/user/me/`).
+- `POST /api/auth/token/` — converte sessão autenticada em token JWT.
+
+### 8.2 Rotas OAuth (Google)
+
+As rotas são expostas por `social_django` sob o prefixo `/auth/`:
+
+- `GET /auth/login/google-oauth2/` — inicia fluxo de login Google.
+- `GET /auth/complete/google-oauth2/` — callback do provedor após autenticação.
+- `GET /auth/logout/` — encerra sessão social/autenticada.
+
+### 8.3 Rotas de recursos (`/api/`)
+
+Os recursos abaixo seguem padrão de ViewSet REST (`list`, `retrieve`, `create`, `update`, `destroy`):
+
+- `GET /api/patients/` — lista pacientes
+- `GET /api/patients/{id}/` — detalha paciente
+- `POST /api/patients/` — cria paciente
+- `PUT /api/patients/{id}/` — atualiza paciente
+- `DELETE /api/patients/{id}/` — remove paciente
+
+- `GET /api/mih/` — lista casos MIH
+- `GET /api/mih/{id}/` — detalha caso MIH
+- `POST /api/mih/` — cria caso MIH
+- `PUT /api/mih/{id}/` — atualiza caso MIH
+- `DELETE /api/mih/{id}/` — remove caso MIH
+
+- `GET /api/tracking-records/` — lista acompanhamentos
+- `GET /api/tracking-records/{id}/` — detalha acompanhamento
+- `POST /api/tracking-records/` — cria acompanhamento
+- `PUT /api/tracking-records/{id}/` — atualiza acompanhamento
+- `DELETE /api/tracking-records/{id}/` — remove acompanhamento
+
+- `GET /api/images/` — lista imagens
+- `GET /api/images/{id}/` — detalha imagem
+- `POST /api/images/` — upload de imagem (`multipart/form-data`, campo `file`)
+- `PUT /api/images/{id}/` — atualiza metadados de imagem
+- `DELETE /api/images/{id}/` — remove imagem
+
+### 8.4 Rotas administrativas e utilitárias
+
+- `GET /admin/` — painel administrativo Django.
+- `GET /media/...` — arquivos de mídia em ambiente de desenvolvimento (`DEBUG=True`).
+
