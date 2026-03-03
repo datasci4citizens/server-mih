@@ -5,3 +5,4 @@ python-dotenv
 django-cors-headers
 social-auth-app-django
 djangorestframework-simplejwt
+minio

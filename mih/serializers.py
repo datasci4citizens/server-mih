@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Image
+from .minio_storage import upload_image_to_minio, MinioStorageError
 
 
 class PatientSerializer(serializers.Serializer):
@@ -54,9 +55,20 @@ class ImageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError({'detail': 'Usuário autenticado é obrigatório para upload de imagem.'})
+
+        uploaded_file = validated_data.get('file')
+        try:
+            object_name, content_type, extension = upload_image_to_minio(uploaded_file, user.id)
+        except MinioStorageError as exc:
+            raise serializers.ValidationError({'detail': str(exc)})
+
         img = Image.objects.create(
-            user=user if user and user.is_authenticated else None,
-            file=validated_data.get('file')
+            user=user,
+            object_name=object_name,
+            content_type=content_type,
+            extension=extension or None,
         )
         return img
 

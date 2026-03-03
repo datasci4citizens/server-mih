@@ -1,31 +1,44 @@
 # PostgreSQL
 https://www.postgresql.org
 
-# PostgreSQL Docker
+# Infra Docker (PostgreSQL + MinIO)
 
-Image: https://hub.docker.com/_/postgres
+Images:
 
-The `docker-compose.yml` has the instructions for "docker compose":
+- PostgreSQL: https://hub.docker.com/_/postgres
+- MinIO: https://hub.docker.com/r/minio/minio
 
-* It departs from the Postgres Docker image.
-* It is meant to be a local configuration of the docker image and must be adapted to the deployment server.
-* In the `ports` section, it redirects the default Postgres port (`5432`) to another one (`5421`), avoiding port collision in case you have a PostgreSQL installed on your machine (optional).
-* It maps two internal (docker machine) folders to external (host machine) ones.
-  * The default internal docker database folder (`/var/lib/postgresql/data`) is mapped to the external: `/home/user/data/pgsql/docker`.
-  * The internal home directory (`/home`) is mapped to the external: `/home/user/data/pgsql/impexp`. This directory is meant to manage files imported/exported.
-  * You must adjust the external directory to your machine folder structure.
-* The `restart` clause considers the local dev environment (it does not restart whenever you turn the machine on). In the server configuration, we suggest replacing it with `restart: always`.
+O arquivo `docker-compose-model.yml` contém a infraestrutura local:
 
-To run:
+- `db`: PostgreSQL 16 na porta `5432`
+- `minio`: storage S3 compatível nas portas `9000` (API) e `9001` (console)
+- volumes bind para `../../volumes/pg-data`, `../../volumes/pg-impexp` e `../../volumes/minio`
+
+Pré-requisitos (no shell atual):
+
 ~~~
-docker compose up
+export MINIO_ACCESS_KEY=miniodev
+export MINIO_SECRET_KEY=miniodev
+~~~
+
+Para subir:
+
+~~~
+docker compose -f docker-compose-model.yml up -d
+docker compose -f docker-compose-model.yml ps
+~~~
+
+Para parar:
+
+~~~
+docker compose -f docker-compose-model.yml down
 ~~~
 
 # Interaction
 
 ~~~
-docker exec -it 1-postgresql-db-1 bash
-psql -U postgres citizen
+docker exec -it dbms-db-1 bash
+psql -U postgres postgres
 ~~~
 
 # PostgreSQL on Ubuntu

@@ -46,3 +46,28 @@ class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
 class ConditionOccurrenceAdmin(admin.ModelAdmin):
     list_display = ('id', 'person', 'condition_concept_id', 'condition_start_date')
 
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'city', 'state', 'address_1')
+
+
+@admin.register(VisitOccurrence)
+class VisitOccurrenceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'visit_concept_id', 'visit_start_date', 'visit_end_date')
+
+
+@admin.register(Observation)
+class ObservationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'observation_concept_id', 'value_as_number', 'observation_datetime')
+
+
+@admin.register(Measurement)
+class MeasurementAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'measurement_concept_id', 'value_as_number', 'measurement_date')
+
+
+@admin.register(FactRelationship)
+class FactRelationshipAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fact_id_1', 'domain_concept_id_1', 'fact_id_2', 'domain_concept_id_2')
+

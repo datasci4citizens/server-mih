@@ -1,9 +1,12 @@
 import json
 from datetime import datetime
+from django.http import Http404, StreamingHttpResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import action
 from .models import Image, PatientNonClinicalInfos
+from .minio_storage import get_image_from_minio, delete_image_from_minio, MinioStorageError
 from .omop_models import (
     Person,
     Location,
@@ -585,3 +588,35 @@ class ImageViewSet(viewsets.ModelViewSet):
     serializer_class = ImageSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = (MultiPartParser, FormParser)
+
+    @action(detail=True, methods=['get'], url_path='content')
+    def content(self, request, pk=None):
+        image = self.get_object()
+        if not image.object_name:
+            raise Http404('Image object not found')
+
+        try:
+            minio_obj = get_image_from_minio(image.object_name)
+        except MinioStorageError:
+            raise Http404('Image file not found in object storage')
+
+        def stream_minio_object(obj, chunk_size=8192):
+            try:
+                while True:
+                    chunk = obj.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                obj.close()
+                obj.release_conn()
+
+        response = StreamingHttpResponse(
+            streaming_content=stream_minio_object(minio_obj),
+            content_type=image.content_type or 'application/octet-stream',
+        )
+        return response
+
+    def perform_destroy(self, instance):
+        delete_image_from_minio(instance.object_name)
+        super().perform_destroy(instance)
