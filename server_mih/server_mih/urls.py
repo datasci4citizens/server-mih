@@ -20,11 +20,16 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 
+class CustomTokenRefreshView(TokenRefreshView):
+    # Overrides global settings to allow refreshing even with an expired access token in the header
+    permission_classes = []
+    authentication_classes = []
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('mih.urls')),           # mih primeiro — inclui /auth/login/google/
     path('auth/', include('social_django.urls', namespace='social')),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('api/token/refresh/', CustomTokenRefreshView.as_view(), name='token-refresh'),
 ]
 
 if settings.DEBUG:

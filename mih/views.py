@@ -2,9 +2,10 @@ import json
 from datetime import datetime
 from django.http import Http404, StreamingHttpResponse
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.decorators import action
+
 from .models import Image, PatientNonClinicalInfos
 from .minio_storage import get_image_from_minio, delete_image_from_minio, MinioStorageError
 from .omop_models import (
@@ -180,6 +181,7 @@ def _serialize_patient(person):
 
     return {
         'id': person.id,
+        'patient_id': person.id,
         'name': (non_clinical.name if non_clinical else None) or source.get('name'),
         'birthday': birthday,
         'user_id': non_clinical.user_id if non_clinical and non_clinical.user_id else None,
@@ -230,7 +232,7 @@ class PatientViewSet(viewsets.ViewSet):
         PatientNonClinicalInfos.objects.create(
             person=person,
             name=data.get('name'),
-            user_id=data.get('user_id'),
+            user_id=request.user.id if request.user.is_authenticated else data.get('user_id'),
         )
 
         _set_observation_bool(person, PATIENT_CONCEPTS['highFever'], data.get('highFever'))
@@ -317,13 +319,38 @@ class PatientViewSet(viewsets.ViewSet):
         person.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=False, methods=['get'], url_path='my', permission_classes=[permissions.IsAuthenticated])
+    def my_patients(self, request):
+        """Retorna os pacientes vinculados ao responsável autenticado."""
+        non_clinicals = PatientNonClinicalInfos.objects.filter(user=request.user).select_related('person')
+        rows = [_serialize_patient(nc.person) for nc in non_clinicals]
+        return Response(rows)
+
+    @action(detail=True, methods=['get'], url_path='mih')
+    def patient_mih(self, request, pk=None):
+        """Retorna todos os registros MIH de um paciente específico."""
+        person = Person.objects.filter(pk=pk).first()
+        if not person:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        rows = [
+            _serialize_mih(row)
+            for row in ConditionOccurrence.objects.filter(person=person, condition_concept_id=COND_MIH_CASE).order_by('-id')
+        ]
+        return Response(rows)
+
 
 def _set_mih_observation(condition, concept_id, *, number=None, text=None, bool_value=None):
     person = condition.person
+    # Delete any existing observation for this condition+concept (bare prefix or with text)
     Observation.objects.filter(
         person=person,
         observation_concept_id=concept_id,
-    ).filter(value_as_string=f"mih:{condition.id}").delete()
+        value_as_string__startswith=f"mih:{condition.id}",
+    ).delete()
+
+    # Don't create if there's nothing meaningful to store
+    if number is None and text in (None, '') and bool_value is None:
+        return
 
     payload = {'person': person, 'observation_concept_id': concept_id, 'value_as_string': f"mih:{condition.id}"}
     if number is not None:
@@ -361,7 +388,11 @@ def _serialize_mih(condition):
             return None
         value = row.value_as_string
         sep = f"mih:{condition.id}|"
-        return value.replace(sep, '', 1) if value.startswith(sep) else value
+        if value.startswith(sep):
+            return value[len(sep):]   # texto real após o separador
+        if value == f"mih:{condition.id}":
+            return None              # só o prefixo bare, sem texto
+        return value
 
     def number_from_photo(concept):
         row = _get_mih_observation(condition, concept)
@@ -369,6 +400,7 @@ def _serialize_mih(condition):
 
     return {
         'id': condition.id,
+        'mih_id': condition.id,
         'patient': condition.person_id,
         'start_date': condition.condition_start_date,
         'end_date': condition.condition_end_date,
@@ -391,7 +423,7 @@ class MihViewSet(viewsets.ViewSet):
     def list(self, request):
         rows = [
             _serialize_mih(row)
-            for row in ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE).order_by('id')
+            for row in ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE).order_by('-id')
         ]
         return Response(rows)
 
@@ -436,6 +468,9 @@ class MihViewSet(viewsets.ViewSet):
         _set_mih_observation(row, OBS_MIH_PHOTO_3, number=data.get('photo_id3'))
 
         return Response(_serialize_mih(row), status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk)
 
     def update(self, request, pk=None):
         row = ConditionOccurrence.objects.filter(pk=pk, condition_concept_id=COND_MIH_CASE).first()
@@ -489,6 +524,21 @@ class MihViewSet(viewsets.ViewSet):
         if row:
             row.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], url_path='undiagnosed')
+    def undiagnosed(self, request):
+        """Retorna os casos MIH que ainda não possuem diagnóstico do especialista."""
+        rows = []
+        for condition in ConditionOccurrence.objects.filter(
+            condition_concept_id=COND_MIH_CASE
+        ).order_by('id'):
+            has_diagnosis = Observation.objects.filter(
+                observation_concept_id=OBS_MIH_DIAGNOSIS_TEXT,
+                value_as_string__startswith=f"mih:{condition.id}|",
+            ).exists()
+            if not has_diagnosis:
+                rows.append(_serialize_mih(condition))
+        return Response(rows)
 
 
 class TrackingRecordViewSet(viewsets.ViewSet):
