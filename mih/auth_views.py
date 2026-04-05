@@ -216,7 +216,6 @@ class UpsertCurrentUserProfileView(APIView):
         payload = request.data or {}
         name = payload.get('name')
         email = payload.get('email')
-        role = payload.get('role')
 
         if name is not None:
             user.first_name = str(name)
@@ -224,10 +223,8 @@ class UpsertCurrentUserProfileView(APIView):
             user.email = str(email)
         user.save(update_fields=['first_name', 'email'])
 
-        if role in {UserProfile.ROLE_RESPONSIBLE, UserProfile.ROLE_SPECIALIST}:
-            profile.role = role
-        if 'is_allowed' in payload:
-            profile.is_allowed = bool(payload.get('is_allowed'))
+        # Do NOT allow clients to change `role` or `is_allowed` via this endpoint.
+        # Roles and provider permissions must be managed by administrators.
         if 'phone_number' in payload:
             profile.phone_number = payload.get('phone_number')
         if 'state' in payload:

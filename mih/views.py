@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from django.http import Http404, StreamingHttpResponse
+from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,8 +21,7 @@ from .omop_models import (
 from .serializers import PatientSerializer, MihSerializer, TrackingRecordSerializer, ImageSerializer
 
 
-class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
-    pass
+# Use DRF's built-in permissions directly; object-level checks are enforced below.
 
 
 PATIENT_CONCEPTS = {
@@ -30,18 +30,18 @@ PATIENT_CONCEPTS = {
     'deliveryProblems': 43530950,
     'lowWeight': 4171115,
     'deliveryType': 4145318,
-    'deliveryProblemsTypes': 910006,
+    'deliveryProblemsTypes': 432382,
     'consultType': 910007,
 }
 
 OBS_BROTHERS_NUMBER = 4072485
-OBS_TRACKING_TEXT = 920002
-OBS_MIH_USER_NOTES = 920003
-OBS_MIH_SPECIALIST_NOTES = 920004
-OBS_MIH_DIAGNOSIS_TEXT = 920005
+OBS_TRACKING_TEXT = 46235038
+OBS_MIH_USER_NOTES = 46235038
+OBS_MIH_SPECIALIST_NOTES = 46235038
+OBS_MIH_DIAGNOSIS_TEXT = 46235038
 OBS_MIH_SENSITIVITY = 4247583
 OBS_MIH_STAIN = 440758
-OBS_MIH_AESTHETIC = 920008
+OBS_MIH_AESTHETIC = 4090431
 OBS_MIH_PHOTO_1 = 920009
 OBS_MIH_PHOTO_2 = 920010
 OBS_MIH_PHOTO_3 = 920011
@@ -199,15 +199,23 @@ def _serialize_patient(person):
 
 
 class PatientViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        rows = [_serialize_patient(person) for person in Person.objects.all().order_by('id')]
+        if request.user.is_staff or request.user.is_superuser:
+            persons = Person.objects.all().order_by('id')
+            rows = [_serialize_patient(person) for person in persons]
+        else:
+            non_clinicals = PatientNonClinicalInfos.objects.filter(user=request.user).select_related('person')
+            rows = [_serialize_patient(nc.person) for nc in non_clinicals]
         return Response(rows)
 
     def retrieve(self, request, pk=None):
         person = Person.objects.filter(pk=pk).first()
         if not person:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_patient(person))
 
@@ -216,37 +224,39 @@ class PatientViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        birthday = data.get('birthday')
-        location = None
-        meta = {'name': data.get('name')}
-        person = Person.objects.create(
-            person_source_value=json.dumps(meta),
-            birth_datetime=birthday,
-            year_of_birth=birthday.year if birthday else None,
-            month_of_birth=birthday.month if birthday else None,
-            day_of_birth=birthday.day if birthday else None,
-            gender_concept_id=0,
-            location=location,
-        )
+        with transaction.atomic():
+            birthday = data.get('birthday')
+            location = None
+            meta = {'name': data.get('name')}
+            person = Person.objects.create(
+                person_source_value=json.dumps(meta),
+                birth_datetime=birthday,
+                year_of_birth=birthday.year if birthday else None,
+                month_of_birth=birthday.month if birthday else None,
+                day_of_birth=birthday.day if birthday else None,
+                gender_concept_id=0,
+                location=location,
+            )
 
-        PatientNonClinicalInfos.objects.create(
-            person=person,
-            name=data.get('name'),
-            user_id=request.user.id if request.user.is_authenticated else data.get('user_id'),
-        )
+            # Always associate created patient with the authenticated user
+            PatientNonClinicalInfos.objects.create(
+                person=person,
+                name=data.get('name'),
+                user=request.user,
+            )
 
-        _set_observation_bool(person, PATIENT_CONCEPTS['highFever'], data.get('highFever'))
-        _set_observation_bool(person, PATIENT_CONCEPTS['premature'], data.get('premature'))
-        _set_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems'], data.get('deliveryProblems'))
-        _set_observation_bool(person, PATIENT_CONCEPTS['lowWeight'], data.get('lowWeight'))
-        _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
-        _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
-        _set_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes'], data.get('deliveryProblemsTypes'))
-        consult_type = data.get('consultType')
-        _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], consult_type, CONSULT_TYPE_VALUE_MAP)
-        if consult_type not in (None, ''):
-            concept = _to_optional_int(consult_type)
-            VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
+            _set_observation_bool(person, PATIENT_CONCEPTS['highFever'], data.get('highFever'))
+            _set_observation_bool(person, PATIENT_CONCEPTS['premature'], data.get('premature'))
+            _set_observation_bool(person, PATIENT_CONCEPTS['deliveryProblems'], data.get('deliveryProblems'))
+            _set_observation_bool(person, PATIENT_CONCEPTS['lowWeight'], data.get('lowWeight'))
+            _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
+            _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
+            _set_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes'], data.get('deliveryProblemsTypes'))
+            consult_type = data.get('consultType')
+            _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], consult_type, CONSULT_TYPE_VALUE_MAP)
+            if consult_type not in (None, ''):
+                concept = _to_optional_int(consult_type)
+                VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
 
         return Response(_serialize_patient(person), status=status.HTTP_201_CREATED)
 
@@ -255,60 +265,66 @@ class PatientViewSet(viewsets.ViewSet):
         if not person:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = PatientSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        source = _parse_person_source_value(person.person_source_value)
-        if 'name' in data:
-            source['name'] = data.get('name')
-            person.person_source_value = json.dumps(source)
+        with transaction.atomic():
+            source = _parse_person_source_value(person.person_source_value)
+            if 'name' in data:
+                source['name'] = data.get('name')
+                person.person_source_value = json.dumps(source)
 
-        if 'birthday' in data:
-            birthday = data.get('birthday')
-            if birthday is None:
-                person.birth_datetime = None
-                person.year_of_birth = None
-                person.month_of_birth = None
-                person.day_of_birth = None
-            else:
-                person.birth_datetime = birthday
-                person.year_of_birth = birthday.year
-                person.month_of_birth = birthday.month
-                person.day_of_birth = birthday.day
+            if 'birthday' in data:
+                birthday = data.get('birthday')
+                if birthday is None:
+                    person.birth_datetime = None
+                    person.year_of_birth = None
+                    person.month_of_birth = None
+                    person.day_of_birth = None
+                else:
+                    person.birth_datetime = birthday
+                    person.year_of_birth = birthday.year
+                    person.month_of_birth = birthday.month
+                    person.day_of_birth = birthday.day
 
-        person.save()
+            person.save()
 
-        non_clinical, _ = PatientNonClinicalInfos.objects.get_or_create(person=person)
-        if 'name' in data:
-            non_clinical.name = data.get('name')
-        if 'user_id' in data:
-            non_clinical.user_id = data.get('user_id')
-        non_clinical.save()
+            non_clinical, _ = PatientNonClinicalInfos.objects.get_or_create(person=person)
+            if 'name' in data:
+                non_clinical.name = data.get('name')
+            # Only staff may change patient ownership
+            if 'user_id' in data and request.user.is_staff:
+                non_clinical.user_id = data.get('user_id')
+            non_clinical.save()
 
-        for field, concept in PATIENT_CONCEPTS.items():
-            if field in ('deliveryProblemsTypes',):
-                if field in data:
-                    _set_observation_text(person, concept, data.get(field))
-            else:
-                if field in data:
-                    _set_observation_bool(person, concept, data.get(field))
+            for field, concept in PATIENT_CONCEPTS.items():
+                if field in ('deliveryProblemsTypes',):
+                    if field in data:
+                        _set_observation_text(person, concept, data.get(field))
+                else:
+                    if field in data:
+                        _set_observation_bool(person, concept, data.get(field))
 
-        if 'deliveryType' in data:
-            _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
+            if 'deliveryType' in data:
+                _set_observation_choice(person, PATIENT_CONCEPTS['deliveryType'], data.get('deliveryType'), DELIVERY_TYPE_VALUE_MAP)
 
-        if 'consultType' in data:
-            _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], data.get('consultType'), CONSULT_TYPE_VALUE_MAP)
+            if 'consultType' in data:
+                _set_observation_choice(person, PATIENT_CONCEPTS['consultType'], data.get('consultType'), CONSULT_TYPE_VALUE_MAP)
 
-        if 'brothersNumber' in data:
-            _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
+            if 'brothersNumber' in data:
+                _set_observation_number(person, OBS_BROTHERS_NUMBER, data.get('brothersNumber'))
 
-        if 'consultType' in data:
-            VisitOccurrence.objects.filter(person=person).delete()
-            consult_type = data.get('consultType')
-            if consult_type not in (None, ''):
-                concept = _to_optional_int(consult_type)
-                VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
+            if 'consultType' in data:
+                VisitOccurrence.objects.filter(person=person).delete()
+                consult_type = data.get('consultType')
+                if consult_type not in (None, ''):
+                    concept = _to_optional_int(consult_type)
+                    VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
 
         return Response(_serialize_patient(person))
 
@@ -316,6 +332,9 @@ class PatientViewSet(viewsets.ViewSet):
         person = Person.objects.filter(pk=pk).first()
         if not person:
             return Response(status=status.HTTP_204_NO_CONTENT)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
         person.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -331,6 +350,9 @@ class PatientViewSet(viewsets.ViewSet):
         """Retorna todos os registros MIH de um paciente específico."""
         person = Person.objects.filter(pk=pk).first()
         if not person:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         rows = [
             _serialize_mih(row)
@@ -418,18 +440,28 @@ def _serialize_mih(condition):
 
 
 class MihViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        rows = [
-            _serialize_mih(row)
-            for row in ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE).order_by('-id')
-        ]
+        if request.user.is_staff or request.user.is_superuser:
+            rows = [
+                _serialize_mih(row)
+                for row in ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE).order_by('-id')
+            ]
+        else:
+            person_ids = PatientNonClinicalInfos.objects.filter(user=request.user).values_list('person_id', flat=True)
+            rows = [
+                _serialize_mih(row)
+                for row in ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE, person_id__in=person_ids).order_by('-id')
+            ]
         return Response(rows)
 
     def retrieve(self, request, pk=None):
         row = ConditionOccurrence.objects.filter(pk=pk, condition_concept_id=COND_MIH_CASE).first()
         if not row:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_mih(row))
 
@@ -441,31 +473,35 @@ class MihViewSet(viewsets.ViewSet):
         person = Person.objects.filter(pk=data.get('patient')).first()
         if not person:
             return Response({'detail': 'Patient not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        row = ConditionOccurrence.objects.create(
-            person=person,
-            condition_concept_id=COND_MIH_CASE,
-            condition_start_date=data.get('start_date'),
-            condition_end_date=data.get('end_date'),
-        )
-
-        if data.get('painLevel') is not None:
-            Measurement.objects.create(
+        with transaction.atomic():
+            row = ConditionOccurrence.objects.create(
                 person=person,
-                measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
-                value_as_number=float(data.get('painLevel')),
-                measurement_date=data.get('start_date'),
+                condition_concept_id=COND_MIH_CASE,
+                condition_start_date=data.get('start_date'),
+                condition_end_date=data.get('end_date'),
             )
 
-        _set_mih_observation(row, OBS_MIH_SENSITIVITY, bool_value=data.get('sensitivityField'))
-        _set_mih_observation(row, OBS_MIH_STAIN, bool_value=data.get('stain'))
-        _set_mih_observation(row, OBS_MIH_AESTHETIC, bool_value=data.get('aestheticDiscomfort'))
-        _set_mih_observation(row, OBS_MIH_USER_NOTES, text=data.get('userObservations'))
-        _set_mih_observation(row, OBS_MIH_SPECIALIST_NOTES, text=data.get('specialistObservations'))
-        _set_mih_observation(row, OBS_MIH_DIAGNOSIS_TEXT, text=data.get('diagnosis'))
-        _set_mih_observation(row, OBS_MIH_PHOTO_1, number=data.get('photo_id1'))
-        _set_mih_observation(row, OBS_MIH_PHOTO_2, number=data.get('photo_id2'))
-        _set_mih_observation(row, OBS_MIH_PHOTO_3, number=data.get('photo_id3'))
+            if data.get('painLevel') is not None:
+                Measurement.objects.create(
+                    person=person,
+                    measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
+                    value_as_number=float(data.get('painLevel')),
+                    measurement_date=data.get('start_date'),
+                )
+
+            _set_mih_observation(row, OBS_MIH_SENSITIVITY, bool_value=data.get('sensitivityField'))
+            _set_mih_observation(row, OBS_MIH_STAIN, bool_value=data.get('stain'))
+            _set_mih_observation(row, OBS_MIH_AESTHETIC, bool_value=data.get('aestheticDiscomfort'))
+            _set_mih_observation(row, OBS_MIH_USER_NOTES, text=data.get('userObservations'))
+            _set_mih_observation(row, OBS_MIH_SPECIALIST_NOTES, text=data.get('specialistObservations'))
+            _set_mih_observation(row, OBS_MIH_DIAGNOSIS_TEXT, text=data.get('diagnosis'))
+            _set_mih_observation(row, OBS_MIH_PHOTO_1, number=data.get('photo_id1'))
+            _set_mih_observation(row, OBS_MIH_PHOTO_2, number=data.get('photo_id2'))
+            _set_mih_observation(row, OBS_MIH_PHOTO_3, number=data.get('photo_id3'))
 
         return Response(_serialize_mih(row), status=status.HTTP_201_CREATED)
 
@@ -477,25 +513,30 @@ class MihViewSet(viewsets.ViewSet):
         if not row:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = MihSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        if 'start_date' in data:
-            row.condition_start_date = data.get('start_date')
-        if 'end_date' in data:
-            row.condition_end_date = data.get('end_date')
-        row.save()
+        with transaction.atomic():
+            if 'start_date' in data:
+                row.condition_start_date = data.get('start_date')
+            if 'end_date' in data:
+                row.condition_end_date = data.get('end_date')
+            row.save()
 
-        if 'painLevel' in data:
-            Measurement.objects.filter(person=row.person, measurement_concept_id=MEAS_MIH_PAIN_LEVEL).delete()
-            if data.get('painLevel') is not None:
-                Measurement.objects.create(
-                    person=row.person,
-                    measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
-                    value_as_number=float(data.get('painLevel')),
-                    measurement_date=row.condition_start_date,
-                )
+            if 'painLevel' in data:
+                Measurement.objects.filter(person=row.person, measurement_concept_id=MEAS_MIH_PAIN_LEVEL).delete()
+                if data.get('painLevel') is not None:
+                    Measurement.objects.create(
+                        person=row.person,
+                        measurement_concept_id=MEAS_MIH_PAIN_LEVEL,
+                        value_as_number=float(data.get('painLevel')),
+                        measurement_date=row.condition_start_date,
+                    )
 
         mapping = {
             'sensitivityField': (OBS_MIH_SENSITIVITY, 'bool'),
@@ -522,6 +563,9 @@ class MihViewSet(viewsets.ViewSet):
     def destroy(self, request, pk=None):
         row = ConditionOccurrence.objects.filter(pk=pk, condition_concept_id=COND_MIH_CASE).first()
         if row:
+            non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+            if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+                return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
             row.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -542,10 +586,14 @@ class MihViewSet(viewsets.ViewSet):
 
 
 class TrackingRecordViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        rows = Observation.objects.filter(observation_concept_id=OBS_TRACKING_TEXT).order_by('id')
+        if request.user.is_staff or request.user.is_superuser:
+            rows = Observation.objects.filter(observation_concept_id=OBS_TRACKING_TEXT).order_by('id')
+        else:
+            person_ids = PatientNonClinicalInfos.objects.filter(user=request.user).values_list('person_id', flat=True)
+            rows = Observation.objects.filter(observation_concept_id=OBS_TRACKING_TEXT, person_id__in=person_ids).order_by('id')
         payload = []
         for row in rows:
             image_ref = FactRelationship.objects.filter(fact_id_1=row.id).order_by('-id').first()
@@ -560,6 +608,9 @@ class TrackingRecordViewSet(viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         row = Observation.objects.filter(pk=pk, observation_concept_id=OBS_TRACKING_TEXT).first()
         if not row:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         image_ref = FactRelationship.objects.filter(fact_id_1=row.id).order_by('-id').first()
         return Response({
@@ -579,6 +630,9 @@ class TrackingRecordViewSet(viewsets.ViewSet):
         person = condition.person if condition else Person.objects.order_by('id').first()
         if not person:
             return Response({'detail': 'Person not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         row = Observation.objects.create(
             person=person,
@@ -605,6 +659,10 @@ class TrackingRecordViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
         if 'observations' in data:
             row.value_as_string = data.get('observations')
         if 'image_id' in data:
@@ -628,6 +686,9 @@ class TrackingRecordViewSet(viewsets.ViewSet):
     def destroy(self, request, pk=None):
         row = Observation.objects.filter(pk=pk, observation_concept_id=OBS_TRACKING_TEXT).first()
         if row:
+            non_clinical = PatientNonClinicalInfos.objects.filter(person=row.person).first()
+            if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+                return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
             FactRelationship.objects.filter(fact_id_1=row.id).delete()
             row.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -636,8 +697,13 @@ class TrackingRecordViewSet(viewsets.ViewSet):
 class ImageViewSet(viewsets.ModelViewSet):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
+
+    def get_queryset(self):
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return Image.objects.all()
+        return Image.objects.filter(user=self.request.user)
 
     @action(detail=True, methods=['get'], url_path='content')
     def content(self, request, pk=None):
@@ -668,5 +734,6 @@ class ImageViewSet(viewsets.ModelViewSet):
         return response
 
     def perform_destroy(self, instance):
+        # get_object has already enforced ownership via queryset; ensure storage cleanup
         delete_image_from_minio(instance.object_name)
         super().perform_destroy(instance)

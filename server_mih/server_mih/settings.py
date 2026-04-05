@@ -30,10 +30,10 @@ if PARENT_DIR not in sys.path:
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(gc-z%0(vb&^l$pf^8-ds!ctq=92&508i(k-y4h@x_a_z)v@5='
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 _raw_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(',') if h.strip()] or [
@@ -107,6 +107,9 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+
+# NOTE: Tests require a configured Postgres. Set `DB_NAME`, `DB_USER`, `DB_PASSWORD`,
+# `DB_HOST` and `DB_PORT` in the environment before running Django commands.
 
 # Authentication / Social Auth
 AUTHENTICATION_BACKENDS = (
@@ -209,4 +212,8 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 # CSRF — origens confiáveis para POST cross-origin (deve espelhar CORS_ALLOWED_ORIGINS)
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+# Security cookie flags (can be overridden via environment variables)
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
 

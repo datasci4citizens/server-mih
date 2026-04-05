@@ -39,9 +39,11 @@ class AuthSessionToJWTTest(TestCase):
         }
         resp = self.client.put('/users/', payload, format='json')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data.get('role'), 'responsible')
+        # role must not be client-settable (security hardening)
+        self.assertIsNone(resp.data.get('role'))
         self.assertEqual(resp.data.get('name'), 'Tester Name')
 
         me = self.client.get('/user/me/')
         self.assertEqual(me.status_code, 200)
-        self.assertEqual(me.data.get('role'), 'responsible')
+        # role remains unset for non-staff updates
+        self.assertIsNone(me.data.get('role'))
