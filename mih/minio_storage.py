@@ -201,7 +201,8 @@ def get_consent_document_presigned_url(object_name: str, expires_in_seconds: int
     bucket = getattr(settings, 'MINIO_DOCUMENTS_BUCKET', 'documents')
     
     try:
-        url = client.get_presigned_download_url(
+        url = client.get_presigned_url(
+            method='GET',
             bucket_name=bucket,
             object_name=object_name,
             expires=timedelta(seconds=expires_in_seconds)

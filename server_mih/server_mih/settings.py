@@ -190,6 +190,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # MinIO (object storage)
 MINIO_IMAGES_BUCKET = os.getenv('MINIO_IMAGES_BUCKET', 'mih')
+MINIO_DOCUMENTS_BUCKET = os.getenv('MINIO_DOCUMENTS_BUCKET', 'documents')
 MINIO_DOMAIN = os.getenv('MINIO_DOMAIN', 'localhost:9000')
 MINIO_SECURE = os.getenv('MINIO_SECURE', 'false').lower() == 'true'
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
