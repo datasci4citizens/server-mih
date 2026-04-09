@@ -39,7 +39,7 @@ class PatientNonClinicalInfosAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderNonClinicalInfos)
 class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
-    list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'accept_tcle', 'updated_at')
+    list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'updated_at')
 
 
 @admin.register(ConditionOccurrence)
