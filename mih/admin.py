@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Image, UserProfile, PatientNonClinicalInfos, ProviderNonClinicalInfos
+from .models import Image, UserProfile, PatientNonClinicalInfos, ProviderNonClinicalInfos, ConsentDocument
 from .omop_models import (
     Person,
     Provider,
@@ -70,4 +70,31 @@ class MeasurementAdmin(admin.ModelAdmin):
 @admin.register(FactRelationship)
 class FactRelationshipAdmin(admin.ModelAdmin):
     list_display = ('id', 'fact_id_1', 'domain_concept_id_1', 'fact_id_2', 'domain_concept_id_2')
+
+
+@admin.register(ConsentDocument)
+class ConsentDocumentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'consent_type', 'version', 'language', 'is_active', 'effective_date', 'file_size')
+    list_filter = ('consent_type', 'language', 'is_active', 'effective_date')
+    search_fields = ('version', 'changelog', 'content_hash')
+    readonly_fields = ('content_hash', 'file_path', 'content_type', 'file_size', 'created_at')
+    
+    fieldsets = (
+        ('Tipo e Versão', {
+            'fields': ('consent_type', 'version', 'language')
+        }),
+        ('Arquivo', {
+            'fields': ('file_path', 'content_type', 'file_size', 'content_hash')
+        }),
+        ('Datas', {
+            'fields': ('effective_date', 'created_at')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Documentação', {
+            'fields': ('changelog',),
+            'classes': ('collapse',)
+        }),
+    )
 
