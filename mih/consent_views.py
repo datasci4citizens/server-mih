@@ -44,24 +44,28 @@ class ConsentDocumentPresignedUrlView(APIView):
         """Retorna URL presignada para download do documento sem passar pelo Django."""
         consent_type = request.query_params.get('type')  # 'tcle' ou 'privacy_policy'
         language = request.query_params.get('language', 'pt-BR')
+        doc_hash = request.query_params.get('hash')
         
-        if not consent_type:
+        if not consent_type and not doc_hash:
             return Response(
-                {'detail': 'Parâmetro "type" obrigatório (tcle ou privacy_policy)'},
+                {'detail': 'Parâmetro "type" ou "hash" obrigatório'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         try:
-            # Buscar documento ativo mais recente
-            doc = ConsentDocument.objects.filter(
-                consent_type=consent_type,
-                language=language,
-                is_active=True
-            ).order_by('-effective_date').first()
+            # Buscar documento por hash ou trazer o ativo mais recente
+            if doc_hash:
+                doc = ConsentDocument.objects.filter(content_hash=doc_hash).first()
+            else:
+                doc = ConsentDocument.objects.filter(
+                    consent_type=consent_type,
+                    language=language,
+                    is_active=True
+                ).order_by('-effective_date').first()
             
             if not doc:
                 return Response(
-                    {'detail': f'Nenhum documento ativo encontrado para {consent_type} ({language})'},
+                    {'detail': 'Documento não encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -105,6 +109,10 @@ class ConsentDocumentUploadView(APIView):
         file_upload = request.FILES.get('file')
         effective_date = request.data.get('effective_date')
         changelog = request.data.get('changelog', '')
+        
+        # Converte string "true"/"false" ou boolean original
+        req_rec_raw = str(request.data.get('requires_reconsent', 'false')).lower()
+        requires_reconsent = req_rec_raw in ('true', '1', 't', 'y', 'yes')
         
         if not all([consent_type, version, file_upload, effective_date]):
             return Response(
@@ -161,6 +169,7 @@ class ConsentDocumentUploadView(APIView):
                 effective_date=effective_date_obj,
                 is_active=True,
                 changelog=changelog,
+                requires_reconsent=requires_reconsent,
             )
             
             return Response({

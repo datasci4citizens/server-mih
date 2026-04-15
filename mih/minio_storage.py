@@ -126,21 +126,13 @@ def upload_consent_document_to_minio(
         file_obj.seek(0)
     except (AttributeError, OSError):
         raise MinioStorageError('Arquivo não é seekable. Envie um arquivo válido.')
-    header = file_obj.read(16)  # Ler primeiros 16 bytes
-    
-    # Magic bytes esperados
-    VALID_MAGIC_BYTES = {
-        b'%PDF': 'application/pdf',
-        b'<!DOCTYPE': 'text/html',
-        b'<html': 'text/html',
-        b'<?xml': 'text/html',
-    }
+    header = file_obj.read(128).lstrip().upper()  # Ler até 128 bytes para ignorar espaços no início
     
     detected_mime = None
-    for magic, mime in VALID_MAGIC_BYTES.items():
-        if header.startswith(magic):
-            detected_mime = mime
-            break
+    if header.startswith(b'%PDF'):
+        detected_mime = 'application/pdf'
+    elif header.startswith(b'<!DOCTYPE') or header.startswith(b'<HTML') or header.startswith(b'<?XML'):
+        detected_mime = 'text/html'
     
     if detected_mime is None:
         raise MinioStorageError(

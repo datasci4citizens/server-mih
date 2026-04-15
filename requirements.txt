@@ -7,3 +7,5 @@ social-auth-app-django
 djangorestframework-simplejwt
 minio
 django-ipware
+django-jazzmin
+whitenoise

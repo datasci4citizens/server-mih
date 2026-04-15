@@ -26,7 +26,7 @@ class UserProfile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=32, choices=ROLE_CHOICES, null=True, blank=True)
-    is_allowed = models.BooleanField(default=True)
+    is_allowed = models.BooleanField(default=False)
     phone_number = models.CharField(max_length=32, null=True, blank=True)
     state = models.CharField(max_length=64, null=True, blank=True)
     city = models.CharField(max_length=64, null=True, blank=True)
@@ -52,7 +52,7 @@ class ProviderNonClinicalInfos(models.Model):
     provider = models.OneToOneField(Provider, on_delete=models.CASCADE, related_name='non_clinical_infos')
     email = models.EmailField(max_length=255, null=True, blank=True)
     phone_number = models.CharField(max_length=32, null=True, blank=True)
-    is_allowed = models.BooleanField(default=True)
+    is_allowed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -99,6 +99,7 @@ class ConsentDocument(models.Model):
     # Metadados
     is_active = models.BooleanField(default=True)  # se está em uso
     changelog = models.TextField(blank=True, null=True)  # o que mudou em relação à versão anterior
+    requires_reconsent = models.BooleanField(default=False)  # obrigar usuário a re-aceitar?
 
     class Meta:
         ordering = ['-created_at']
@@ -129,7 +130,7 @@ class ConsentManager(models.Manager):
         from django.db.models import Max
         
         # Get latest consent ID for each consent_type in a single query
-        latest_ids = self.filter(user=user).values('consent_type').annotate(
+        latest_ids = self.filter(user=user).order_by().values('consent_type').annotate(
             latest_id=Max('id')
         ).values_list('latest_id', flat=True)
         

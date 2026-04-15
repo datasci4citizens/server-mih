@@ -3,8 +3,9 @@ from datetime import datetime
 from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 
-from ..models import PatientNonClinicalInfos
+from ..models import PatientNonClinicalInfos, UserProfile
 from ..omop_models import (
     Person,
     Location,
@@ -12,6 +13,23 @@ from ..omop_models import (
     Observation,
 )
 from ..serializers import PatientSerializer
+
+
+def _is_allowed_specialist(user):
+    """Retorna True se o usuário é um especialista habilitado pelo admin."""
+    try:
+        profile = UserProfile.objects.get(user=user)
+        if profile.role != UserProfile.ROLE_SPECIALIST:
+            return False
+        from ..omop_models import Provider
+        from ..models import ProviderNonClinicalInfos
+        provider = Provider.objects.filter(id=user.id).first()
+        if not provider:
+            return False
+        nc = ProviderNonClinicalInfos.objects.filter(provider=provider).first()
+        return nc is not None and nc.is_allowed
+    except Exception:
+        return False
 
 
 # Constants (Patient concepts)
@@ -196,7 +214,7 @@ class PatientViewSet(viewsets.ViewSet):
         if not person:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
-        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id) or _is_allowed_specialist(request.user)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_patient(person))
 
@@ -319,12 +337,14 @@ class PatientViewSet(viewsets.ViewSet):
         person.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=False, methods=['get'], url_path='my')
     def my_patients(self, request):
         """Retorna os pacientes vinculados ao responsável autenticado."""
         non_clinicals = PatientNonClinicalInfos.objects.filter(user=request.user).select_related('person')
         rows = [_serialize_patient(nc.person) for nc in non_clinicals]
         return Response(rows)
 
+    @action(detail=True, methods=['get'], url_path='mih')
     def patient_mih(self, request, pk=None):
         """Retorna todos os registros MIH de um paciente específico."""
         from .mih import _serialize_mih
@@ -336,7 +356,7 @@ class PatientViewSet(viewsets.ViewSet):
         if not person:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
-        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
+        if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id) or _is_allowed_specialist(request.user)):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         rows = [
             _serialize_mih(row)

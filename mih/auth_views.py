@@ -280,11 +280,13 @@ def _sync_specialist_omop(user, profile):
             },
         )
 
-        ProviderNonClinicalInfos.objects.update_or_create(
+        non_clinical, _ = ProviderNonClinicalInfos.objects.update_or_create(
             provider=provider,
             defaults={
                 'email': getattr(user, 'email', None),
                 'phone_number': profile.phone_number,
+            },
+            create_defaults={
                 'is_allowed': profile.is_allowed,
             },
         )
@@ -304,6 +306,44 @@ class CurrentUserView(APIView):
             provider = _sync_specialist_omop(user, profile) if profile.role == UserProfile.ROLE_SPECIALIST else None
             consent_state = Consent.objects.get_current_state(user)
             
+            pending_actions = {}
+            active_tcle = ConsentDocument.objects.filter(consent_type='tcle', language='pt-BR', is_active=True).order_by('-effective_date').first()
+            active_privacy = ConsentDocument.objects.filter(consent_type='privacy_policy', language='pt-BR', is_active=True).order_by('-effective_date').first()
+            
+            current_tcle = consent_state.get('tcle', {})
+            if current_tcle.get('accepted') and active_tcle:
+                if current_tcle.get('document_hash') != active_tcle.content_hash:
+                    pending_actions['tcle'] = {
+                        'has_update': True,
+                        'changelog': active_tcle.changelog,
+                        'version': active_tcle.version,
+                        'requires_reconsent': active_tcle.requires_reconsent,
+                        'document_hash': active_tcle.content_hash,
+                    }
+                    
+            current_privacy = consent_state.get('privacy_policy', {})
+            if active_privacy:
+                if current_privacy.get('document_hash') != active_privacy.content_hash:
+                    pending_actions['privacy_policy'] = {
+                        'has_update': True,
+                        'changelog': active_privacy.changelog,
+                        'version': active_privacy.version,
+                        'requires_reconsent': active_privacy.requires_reconsent,
+                        'document_hash': active_privacy.content_hash,
+                    }
+            
+            # Para especialistas, is_allowed é gerenciado pelo ProviderNonClinicalInfos
+            # (editado via admin). Para outros perfis, usa UserProfile.is_allowed.
+            if provider:
+                try:
+                    from .models import ProviderNonClinicalInfos
+                    non_clinical = ProviderNonClinicalInfos.objects.get(provider=provider)
+                    is_allowed = non_clinical.is_allowed
+                except Exception:
+                    is_allowed = profile.is_allowed
+            else:
+                is_allowed = profile.is_allowed
+
             return Response({
                 'id': user.id,
                 'name': getattr(user, 'first_name', None) or getattr(user, 'username', None),
@@ -311,12 +351,13 @@ class CurrentUserView(APIView):
                 'email': getattr(user, 'email', None),
                 'specialist_id': provider.id if provider else None,
                 'role': profile.role,
-                'is_allowed': profile.is_allowed,
+                'is_allowed': is_allowed,
                 'phone_number': profile.phone_number,
                 'state': profile.state,
                 'city': profile.city,
                 'neighborhood': profile.neighborhood,
                 'consent': consent_state,
+                'pending_actions': pending_actions,
             })
         except Exception as e:
             return Response(
@@ -344,7 +385,14 @@ class UpsertCurrentUserProfileView(APIView):
                 user.email = str(email)
             user.save(update_fields=['first_name', 'email'])
 
-            # Do NOT allow clients to change `role` or `is_allowed` via this endpoint.
+            # Permitir a definição do papel (role) inicial durante o cadastro.
+            # Usuários não podem alterar o papel depois que ele já foi definido.
+            if not profile.role and payload.get('role'):
+                profile.role = payload.get('role')
+                if profile.role == UserProfile.ROLE_SPECIALIST:
+                    profile.is_allowed = False
+
+            # Do NOT allow clients to change `role` (if already set) or `is_allowed` via this endpoint.
             # Roles and provider permissions must be managed by administrators.
             if 'phone_number' in payload:
                 profile.phone_number = payload.get('phone_number')
@@ -366,24 +414,42 @@ class UpsertCurrentUserProfileView(APIView):
             if 'accept_tcle' in payload:
                 tcle_value = bool(payload.get('accept_tcle'))
                 document_ref = payload.get('tcle_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                document = _resolve_consent_document('tcle', document_ref)
-                if document is None:
+                print(f"DEBUG: accept_tcle eval. Value: {tcle_value}, Ref: {document_ref}")
+                if document_ref:
+                    document = _resolve_consent_document('tcle', document_ref)
+                    if document is None:
+                        print("DEBUG: TCLE document invalid")
+                        return Response(
+                            {'detail': 'TCLE document reference invalid'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    _record_consent(user, 'tcle', tcle_value, document, request)
+                elif tcle_value:
+                    print("DEBUG: TCLE document required but missing ref")
                     return Response(
                         {'detail': 'TCLE document reference required (id ou hash)'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                _record_consent(user, 'tcle', tcle_value, document, request)
             
             if 'accept_privacy_policy' in payload:
                 privacy_value = bool(payload.get('accept_privacy_policy'))
                 document_ref = payload.get('privacy_policy_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                document = _resolve_consent_document('privacy_policy', document_ref)
-                if document is None:
+                print(f"DEBUG: accept_privacy eval. Value: {privacy_value}, Ref: {document_ref}")
+                if document_ref:
+                    document = _resolve_consent_document('privacy_policy', document_ref)
+                    if document is None:
+                        print("DEBUG: Privacy document invalid")
+                        return Response(
+                            {'detail': 'Privacy Policy document reference invalid'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    _record_consent(user, 'privacy_policy', privacy_value, document, request)
+                elif privacy_value:
+                    print("DEBUG: Privacy document required but missing ref")
                     return Response(
                         {'detail': 'Privacy Policy document reference required (id ou hash)'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                _record_consent(user, 'privacy_policy', privacy_value, document, request)
         except Exception as e:
             return Response(
                 {'detail': 'Erro ao registrar consentimentos.'},

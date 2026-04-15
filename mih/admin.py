@@ -24,6 +24,7 @@ class ImageAdmin(admin.ModelAdmin):
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'role', 'is_allowed', 'updated_at')
+    list_editable = ('is_allowed',)
 
 
 @admin.register(Person)
@@ -44,6 +45,7 @@ class PatientNonClinicalInfosAdmin(admin.ModelAdmin):
 @admin.register(ProviderNonClinicalInfos)
 class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
     list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'updated_at')
+    list_editable = ('is_allowed',)
 
 
 @admin.register(ConditionOccurrence)
@@ -86,7 +88,7 @@ class ConsentDocumentForm(forms.ModelForm):
 
     class Meta:
         model = ConsentDocument
-        fields = ('consent_type', 'version', 'language', 'effective_date', 'is_active', 'changelog')
+        fields = ('consent_type', 'version', 'language', 'effective_date', 'is_active', 'requires_reconsent', 'changelog')
         widgets = {
             'effective_date': AdminSplitDateTime(
                 attrs={
@@ -167,7 +169,7 @@ class ConsentDocumentAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Metadados', {
-            'fields': ('consent_type', 'version', 'language', 'effective_date', 'is_active')
+            'fields': ('consent_type', 'version', 'language', 'effective_date', 'is_active', 'requires_reconsent')
         }),
         ('Upload do Arquivo', {
             'fields': ('document_file',),

@@ -8,3 +8,5 @@ node_modules/
 server_mih/media/images/
 .env
 docker-compose.yml
+staticfiles/
+server_mih/staticfiles/

@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from ..models import Image
 from ..minio_storage import get_image_from_minio, delete_image_from_minio, MinioStorageError
 from ..serializers import ImageSerializer
+from .patient import _is_allowed_specialist
 
 
 class ImageViewSet(viewsets.ModelViewSet):
@@ -19,6 +20,9 @@ class ImageViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_staff or self.request.user.is_superuser:
+            return Image.objects.all()
+        # Especialistas habilitados podem ver todas as imagens (para diagnóstico)
+        if _is_allowed_specialist(self.request.user):
             return Image.objects.all()
         return Image.objects.filter(user=self.request.user)
 
