@@ -1,11 +1,12 @@
 import json
 from datetime import datetime
+from django.utils import timezone
 from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
-from ..models import PatientNonClinicalInfos, UserProfile
+from ..models import PatientNonClinicalInfos, UserProfile, Consent, ConsentDocument
 from ..omop_models import (
     Person,
     Location,
@@ -175,6 +176,12 @@ def _serialize_patient(person):
         consult = VisitOccurrence.objects.filter(person=person).order_by('-id').first()
         consult_type = str(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
 
+    # Busca o TALE mais recente associado a este paciente
+    tale_consent = Consent.objects.filter(
+        patient=person,
+        consent_type__in=['tale_6_9', 'tale_10_12']
+    ).order_by('-id').first()
+
     return {
         'id': person.id,
         'patient_id': person.id,
@@ -191,6 +198,8 @@ def _serialize_patient(person):
         'brothersNumber': _get_observation_number(person, OBS_BROTHERS_NUMBER),
         'consultType': consult_type,
         'deliveryProblemsTypes': _get_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes']),
+        'tale_document_id': tale_consent.document_id if tale_consent else None,
+        'tale_accepted': tale_consent.accepted if tale_consent else None,
     }
 
 
@@ -222,6 +231,23 @@ class PatientViewSet(viewsets.ViewSet):
         serializer = PatientSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+
+        # Valida documento TALE antes de iniciar a transação
+        tale_document_id = data.get('tale_document_id')
+        tale_accepted = data.get('tale_accepted')
+        tale_doc = None
+        if tale_document_id is not None and tale_accepted is not None:
+            tale_doc = ConsentDocument.objects.filter(
+                id=tale_document_id,
+                consent_type__in=('tale_6_9', 'tale_10_12'),
+                is_active=True,
+                effective_date__lte=timezone.now()
+            ).first()
+            if tale_doc is None:
+                return Response(
+                    {'detail': 'Documento TALE inválido ou não disponível. Recarregue o formulário e tente novamente.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         with transaction.atomic():
             birthday = data.get('birthday')
@@ -256,6 +282,18 @@ class PatientViewSet(viewsets.ViewSet):
             if consult_type not in (None, ''):
                 concept = _to_optional_int(consult_type)
                 VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
+
+            # Registra consentimento TALE vinculado ao paciente, se fornecido
+            if tale_doc is not None:
+                Consent.objects.create(
+                    user=request.user,
+                    consent_type=tale_doc.consent_type,
+                    document=tale_doc,
+                    accepted=tale_accepted,
+                    patient=person,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                )
 
         return Response(_serialize_patient(person), status=status.HTTP_201_CREATED)
 

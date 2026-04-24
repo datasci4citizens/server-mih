@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from ipware import get_client_ip
+from django.utils import timezone
 from .models import UserProfile, ProviderNonClinicalInfos, Consent, ConsentDocument
 from .omop_models import Provider, Location
 
@@ -33,11 +34,14 @@ def _resolve_consent_document(consent_type, document_ref):
         return None
     
     if isinstance(document_ref, dict):
+        now = timezone.now()
         if 'id' in document_ref:
             try:
                 return ConsentDocument.objects.get(
                     id=document_ref['id'],
-                    consent_type=consent_type
+                    consent_type=consent_type,
+                    is_active=True,
+                    effective_date__lte=now
                 )
             except ConsentDocument.DoesNotExist:
                 return None
@@ -45,7 +49,9 @@ def _resolve_consent_document(consent_type, document_ref):
             try:
                 return ConsentDocument.objects.get(
                     content_hash=document_ref['hash'],
-                    consent_type=consent_type
+                    consent_type=consent_type,
+                    is_active=True,
+                    effective_date__lte=now
                 )
             except ConsentDocument.DoesNotExist:
                 return None
@@ -307,8 +313,8 @@ class CurrentUserView(APIView):
             consent_state = Consent.objects.get_current_state(user)
             
             pending_actions = {}
-            active_tcle = ConsentDocument.objects.filter(consent_type='tcle', language='pt-BR', is_active=True).order_by('-effective_date').first()
-            active_privacy = ConsentDocument.objects.filter(consent_type='privacy_policy', language='pt-BR', is_active=True).order_by('-effective_date').first()
+            active_tcle = ConsentDocument.objects.filter(consent_type='tcle', language='pt-BR', is_active=True, effective_date__lte=timezone.now()).order_by('-effective_date').first()
+            active_privacy = ConsentDocument.objects.filter(consent_type='privacy_policy', language='pt-BR', is_active=True, effective_date__lte=timezone.now()).order_by('-effective_date').first()
             
             current_tcle = consent_state.get('tcle', {})
             if current_tcle.get('accepted') and active_tcle:

@@ -1,4 +1,5 @@
 from datetime import datetime
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -16,7 +17,8 @@ class ConsentDocumentListView(APIView):
         consent_type = request.query_params.get('type')  # opcional: filtrar por tipo
         language = request.query_params.get('language', 'pt-BR')
         
-        query = ConsentDocument.objects.filter(is_active=True, language=language)
+        now = timezone.now()
+        query = ConsentDocument.objects.filter(is_active=True, language=language, effective_date__lte=now)
         if consent_type:
             query = query.filter(consent_type=consent_type)
         
@@ -60,7 +62,8 @@ class ConsentDocumentPresignedUrlView(APIView):
                 doc = ConsentDocument.objects.filter(
                     consent_type=consent_type,
                     language=language,
-                    is_active=True
+                    is_active=True,
+                    effective_date__lte=timezone.now()
                 ).order_by('-effective_date').first()
             
             if not doc:

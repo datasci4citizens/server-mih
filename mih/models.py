@@ -71,6 +71,8 @@ class ConsentDocument(models.Model):
         choices=(
             ('tcle', 'TCLE (Termo de Consentimento Livre e Esclarecido)'),
             ('privacy_policy', 'Privacy Policy'),
+            ('tale_6_9', 'TALE (6–9 anos)'),
+            ('tale_10_12', 'TALE (10–12 anos)'),
         ),
         db_index=True
     )
@@ -176,11 +178,23 @@ class Consent(models.Model):
         choices=(
             ('tcle', 'TCLE (Termo de Consentimento Livre e Esclarecido)'),
             ('privacy_policy', 'Privacy Policy'),
+            ('tale_6_9', 'TALE (6–9 anos)'),
+            ('tale_10_12', 'TALE (10–12 anos)'),
         )
     )
     document = models.ForeignKey(ConsentDocument, on_delete=models.PROTECT, related_name='acceptances')
     accepted = models.BooleanField(default=False)
-    
+
+    # Associação opcional ao paciente (usado apenas para TALE)
+    # Para TCLE e Privacy Policy este campo fica nulo.
+    patient = models.ForeignKey(
+        Person,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tale_consents',
+    )
+
     # Auditoria
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -195,13 +209,16 @@ class Consent(models.Model):
             models.Index(fields=['user', 'consent_type', '-created_at']),
             models.Index(fields=['document', 'accepted']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['patient', 'consent_type', '-created_at']),
         ]
         # Permite múltiplos registros mesmo tipo/user (para histórico)
         unique_together = []
 
     def __str__(self):
+        if self.patient_id:
+            return f"Consent {self.user_id} (paciente {self.patient_id}) - {self.document} ({self.accepted})"
         return f"Consent {self.user_id} - {self.document} ({self.accepted})"
-    
+
     def save(self, *args, **kwargs):
         """Garante que tipo de consentimento corresponde ao document."""
         if self.document and self.consent_type != self.document.consent_type:

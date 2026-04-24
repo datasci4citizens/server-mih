@@ -18,6 +18,8 @@ class PatientSerializer(serializers.Serializer):
     brothersNumber = serializers.IntegerField(required=False, allow_null=True)
     consultType = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     deliveryProblemsTypes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tale_document_id = serializers.IntegerField(required=False, allow_null=True)
+    tale_accepted = serializers.BooleanField(required=False, allow_null=True)
 
 
 class MihSerializer(serializers.Serializer):
