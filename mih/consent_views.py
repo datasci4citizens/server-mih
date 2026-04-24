@@ -29,7 +29,9 @@ class ConsentDocumentListView(APIView):
             'language',
             'content_hash',
             'effective_date',
-            'created_at'
+            'created_at',
+            'requires_reconsent',
+            'changelog'
         )
         
         return Response({

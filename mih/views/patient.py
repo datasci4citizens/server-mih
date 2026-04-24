@@ -177,7 +177,7 @@ def _serialize_patient(person):
         consult_type = str(consult.visit_concept_id) if consult and consult.visit_concept_id is not None else None
 
     # Busca o TALE mais recente associado a este paciente
-    tale_consent = Consent.objects.filter(
+    tale_consent = Consent.objects.select_related('document').filter(
         patient=person,
         consent_type__in=['tale_6_9', 'tale_10_12']
     ).order_by('-id').first()
@@ -199,7 +199,10 @@ def _serialize_patient(person):
         'consultType': consult_type,
         'deliveryProblemsTypes': _get_observation_text(person, PATIENT_CONCEPTS['deliveryProblemsTypes']),
         'tale_document_id': tale_consent.document_id if tale_consent else None,
+        'tale_document_hash': tale_consent.document.content_hash if tale_consent and tale_consent.document else None,
+        'tale_document_version': tale_consent.document.version if tale_consent and tale_consent.document else None,
         'tale_accepted': tale_consent.accepted if tale_consent else None,
+        'tale_accepted_at': tale_consent.created_at.isoformat() if tale_consent else None,
     }
 
 
@@ -310,6 +313,23 @@ class PatientViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # Valida documento TALE antes de iniciar a transação
+        tale_document_id = data.get('tale_document_id')
+        tale_accepted = data.get('tale_accepted')
+        tale_doc = None
+        if tale_document_id is not None and tale_accepted is not None:
+            tale_doc = ConsentDocument.objects.filter(
+                id=tale_document_id,
+                consent_type__in=('tale_6_9', 'tale_10_12'),
+                is_active=True,
+                effective_date__lte=timezone.now()
+            ).first()
+            if tale_doc is None:
+                return Response(
+                    {'detail': 'Documento TALE inválido ou não disponível. Recarregue a página e tente novamente.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         with transaction.atomic():
             source = _parse_person_source_value(person.person_source_value)
             if 'name' in data:
@@ -362,6 +382,21 @@ class PatientViewSet(viewsets.ViewSet):
                 if consult_type not in (None, ''):
                     concept = _to_optional_int(consult_type)
                     VisitOccurrence.objects.create(person=person, visit_concept_id=concept)
+
+            # Registra consentimento TALE vinculado ao paciente, se fornecido
+            if tale_doc is not None:
+                # Opcionalmente, checamos se não já foi aceito para evitar duplicações 
+                # caso o frontend mande na atualização sem necessidade, 
+                # mas seguindo o padrão, registramos uma nova entrada se vier na request.
+                Consent.objects.create(
+                    user=request.user,
+                    consent_type=tale_doc.consent_type,
+                    document=tale_doc,
+                    accepted=tale_accepted,
+                    patient=person,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                )
 
         return Response(_serialize_patient(person))
 
