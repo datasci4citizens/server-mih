@@ -244,11 +244,14 @@ class PatientViewSet(viewsets.ViewSet):
         if birthday:
             age = (timezone.now().date() - birthday.date()).days // 365
             if 6 <= age <= 12:
-                if not tale_document_id or not tale_accepted:
-                    return Response(
-                        {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                consent_state = Consent.objects.get_current_state(request.user)
+                tcle_accepted = consent_state.get('tcle', {}).get('accepted', False)
+                if tcle_accepted:
+                    if not tale_document_id or not tale_accepted:
+                        return Response(
+                            {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos participantes da pesquisa.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
         
         tale_doc = None
         if tale_document_id is not None and tale_accepted is not None:
@@ -334,11 +337,20 @@ class PatientViewSet(viewsets.ViewSet):
         if 'birthday' in data and birthday:
             age = (timezone.now().date() - birthday.date()).days // 365
             if 6 <= age <= 12:
-                if not tale_document_id or not tale_accepted:
-                    return Response(
-                        {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                consent_state = Consent.objects.get_current_state(request.user)
+                tcle_accepted = consent_state.get('tcle', {}).get('accepted', False)
+                if tcle_accepted:
+                    # check if patient already has an active tale consent
+                    has_tale = Consent.objects.filter(
+                        patient=person,
+                        consent_type__in=('tale_6_9', 'tale_10_12'),
+                        accepted=True
+                    ).exists()
+                    if not has_tale and (not tale_document_id or not tale_accepted):
+                        return Response(
+                            {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
         
         tale_doc = None
         if tale_document_id is not None and tale_accepted is not None:
