@@ -235,9 +235,21 @@ class PatientViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        birthday = data.get('birthday')
+
         # Valida documento TALE antes de iniciar a transação
         tale_document_id = data.get('tale_document_id')
         tale_accepted = data.get('tale_accepted')
+        
+        if birthday:
+            age = (timezone.now().date() - birthday.date()).days // 365
+            if 6 <= age <= 12:
+                if not tale_document_id or not tale_accepted:
+                    return Response(
+                        {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        
         tale_doc = None
         if tale_document_id is not None and tale_accepted is not None:
             tale_doc = ConsentDocument.objects.filter(
@@ -313,9 +325,21 @@ class PatientViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        birthday = data.get('birthday')
+
         # Valida documento TALE antes de iniciar a transação
         tale_document_id = data.get('tale_document_id')
         tale_accepted = data.get('tale_accepted')
+        
+        if 'birthday' in data and birthday:
+            age = (timezone.now().date() - birthday.date()).days // 365
+            if 6 <= age <= 12:
+                if not tale_document_id or not tale_accepted:
+                    return Response(
+                        {'detail': 'Termo de Assentimento (TALE) é obrigatório para crianças entre 6 e 12 anos.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        
         tale_doc = None
         if tale_document_id is not None and tale_accepted is not None:
             tale_doc = ConsentDocument.objects.filter(

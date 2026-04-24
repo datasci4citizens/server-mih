@@ -12,6 +12,8 @@ from django.utils import timezone
 from .models import UserProfile, ProviderNonClinicalInfos, Consent, ConsentDocument
 from .omop_models import Provider, Location
 
+from django.db import transaction
+
 GOOGLE_ACCESS_TOKEN_OBTAIN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
@@ -85,22 +87,23 @@ def _record_consent(user, consent_type, accepted, document, request):
 def _upsert_user_from_google(email, name):
     """Encontra ou cria um User + UserProfile a partir dos dados do Google."""
     try:
-        user, created = User.objects.get_or_create(
-            username=email,
-            defaults={"email": email, "first_name": name or ""},
-        )
-        if not created:
-            changed = False
-            if not user.first_name and name:
-                user.first_name = name
-                changed = True
-            if user.email != email:
-                user.email = email
-                changed = True
-            if changed:
-                user.save(update_fields=["first_name", "email"])
-        UserProfile.objects.get_or_create(user=user)
-        return user
+        with transaction.atomic():
+            user, created = User.objects.get_or_create(
+                username=email,
+                defaults={"email": email, "first_name": name or ""},
+            )
+            if not created:
+                changed = False
+                if not user.first_name and name:
+                    user.first_name = name
+                    changed = True
+                if user.email != email:
+                    user.email = email
+                    changed = True
+                if changed:
+                    user.save(update_fields=["first_name", "email"])
+            UserProfile.objects.get_or_create(user=user)
+            return user
     except Exception as e:
         raise
 
@@ -269,35 +272,36 @@ class LogoutView(APIView):
 
 def _sync_specialist_omop(user, profile):
     try:
-        location, _ = Location.objects.get_or_create(
-            city=profile.city,
-            state=profile.state,
-            address_1=profile.neighborhood,
-        )
+        with transaction.atomic():
+            location, _ = Location.objects.get_or_create(
+                city=profile.city,
+                state=profile.state,
+                address_1=profile.neighborhood,
+            )
 
-        provider, _ = Provider.objects.update_or_create(
-            id=user.id,
-            defaults={
-                'provider_name': getattr(user, 'first_name', None) or getattr(user, 'username', None),
-                'provider_source_value': getattr(user, 'email', None),
-                'provider_user_id': user.id,
-                'location': location,
-                'phone': profile.phone_number,
-            },
-        )
+            provider, _ = Provider.objects.update_or_create(
+                id=user.id,
+                defaults={
+                    'provider_name': getattr(user, 'first_name', None) or getattr(user, 'username', None),
+                    'provider_source_value': getattr(user, 'email', None),
+                    'provider_user_id': user.id,
+                    'location': location,
+                    'phone': profile.phone_number,
+                },
+            )
 
-        non_clinical, _ = ProviderNonClinicalInfos.objects.update_or_create(
-            provider=provider,
-            defaults={
-                'email': getattr(user, 'email', None),
-                'phone_number': profile.phone_number,
-            },
-            create_defaults={
-                'is_allowed': profile.is_allowed,
-            },
-        )
+            non_clinical, _ = ProviderNonClinicalInfos.objects.update_or_create(
+                provider=provider,
+                defaults={
+                    'email': getattr(user, 'email', None),
+                    'phone_number': profile.phone_number,
+                },
+                create_defaults={
+                    'is_allowed': profile.is_allowed,
+                },
+            )
 
-        return provider
+            return provider
     except Exception:
         return None
 
