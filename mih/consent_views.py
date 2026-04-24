@@ -1,5 +1,6 @@
 from datetime import datetime
 from django.utils import timezone
+from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -148,34 +149,37 @@ class ConsentDocumentUploadView(APIView):
             )
         
         try:
-            # Desativar versão anterior do mesmo type/language se existir
-            ConsentDocument.objects.filter(
-                consent_type=consent_type,
-                language=language,
-                is_active=True
-            ).update(is_active=False)
-            
             try:
                 effective_date_obj = datetime.fromisoformat(effective_date)
             except (ValueError, TypeError):
+                from .minio_storage import delete_consent_document_from_minio
+                delete_consent_document_from_minio(file_path)
                 return Response(
                     {'detail': 'Formato de effective_date inválido. Use ISO format (YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS)'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            doc = ConsentDocument.objects.create(
-                consent_type=consent_type,
-                version=version,
-                language=language,
-                file_path=file_path,
-                content_type=content_type,
-                file_size=file_upload.size,
-                content_hash=content_hash,
-                effective_date=effective_date_obj,
-                is_active=True,
-                changelog=changelog,
-                requires_reconsent=requires_reconsent,
-            )
+            with transaction.atomic():
+                # Desativar versão anterior do mesmo type/language se existir
+                ConsentDocument.objects.filter(
+                    consent_type=consent_type,
+                    language=language,
+                    is_active=True
+                ).update(is_active=False)
+                
+                doc = ConsentDocument.objects.create(
+                    consent_type=consent_type,
+                    version=version,
+                    language=language,
+                    file_path=file_path,
+                    content_type=content_type,
+                    file_size=file_upload.size,
+                    content_hash=content_hash,
+                    effective_date=effective_date_obj,
+                    is_active=True,
+                    changelog=changelog,
+                    requires_reconsent=requires_reconsent,
+                )
             
             return Response({
                 'id': doc.id,
