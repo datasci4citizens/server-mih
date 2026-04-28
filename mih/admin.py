@@ -3,7 +3,7 @@ from django.contrib.admin.widgets import AdminSplitDateTime
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.html import format_html
-from .models import Image, UserProfile, PatientNonClinicalInfos, ProviderNonClinicalInfos, ConsentDocument
+from .models import Image, UserProfile, PatientNonClinicalInfos, ProviderNonClinicalInfos, ConsentDocument, Consent
 from .omop_models import (
     Person,
     Provider,
@@ -16,67 +16,9 @@ from .omop_models import (
 )
 
 
-@admin.register(Image)
-class ImageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'extension', 'user', 'created_at')
-
-
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'role', 'is_allowed', 'updated_at')
-    list_editable = ('is_allowed',)
-
-
-@admin.register(Person)
-class PersonAdmin(admin.ModelAdmin):
-    list_display = ('id', 'person_source_value', 'year_of_birth')
-
-
-@admin.register(Provider)
-class ProviderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'provider_name', 'provider_source_value')
-
-
-@admin.register(PatientNonClinicalInfos)
-class PatientNonClinicalInfosAdmin(admin.ModelAdmin):
-    list_display = ('person', 'name', 'user', 'created_at', 'updated_at')
-
-
-@admin.register(ProviderNonClinicalInfos)
-class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
-    list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'updated_at')
-    list_editable = ('is_allowed',)
-
-
-@admin.register(ConditionOccurrence)
-class ConditionOccurrenceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'person', 'condition_concept_id', 'condition_start_date')
-
-
-@admin.register(Location)
-class LocationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'city', 'state', 'address_1')
-
-
-@admin.register(VisitOccurrence)
-class VisitOccurrenceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'person', 'visit_concept_id', 'visit_start_date', 'visit_end_date')
-
-
-@admin.register(Observation)
-class ObservationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'person', 'observation_concept_id', 'value_as_number', 'observation_datetime')
-
-
-@admin.register(Measurement)
-class MeasurementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'person', 'measurement_concept_id', 'value_as_number', 'measurement_date')
-
-
-@admin.register(FactRelationship)
-class FactRelationshipAdmin(admin.ModelAdmin):
-    list_display = ('id', 'fact_id_1', 'domain_concept_id_1', 'fact_id_2', 'domain_concept_id_2')
-
+# ============================================================================
+# FORMULÁRIO CUSTOMIZADO PARA CONSENTDOCUMENT
+# ============================================================================
 
 class ConsentDocumentForm(forms.ModelForm):
     """Formulário customizado para upload de documentos de consentimento."""
@@ -84,6 +26,12 @@ class ConsentDocumentForm(forms.ModelForm):
         required=False,
         label='Arquivo do Documento (PDF ou HTML)',
         help_text='Máximo 50MB. Formatos aceitos: PDF, HTML'
+    )
+    changelog = forms.CharField(
+        required=True,
+        widget=forms.Textarea,
+        label='Changelog',
+        help_text='Descrição das mudanças nesta versão'
     )
 
     class Meta:
@@ -151,10 +99,52 @@ class ConsentDocumentForm(forms.ModelForm):
         return instance
 
 
+# ============================================================================
+# REGISTROS DE ADMIN
+# ============================================================================
+
+@admin.register(Image)
+class ImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'extension', 'user', 'created_at')
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'role', 'is_allowed', 'updated_at')
+    list_editable = ('is_allowed',)
+
+
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person_source_value', 'year_of_birth')
+
+
+@admin.register(Provider)
+class ProviderAdmin(admin.ModelAdmin):
+    list_display = ('id', 'provider_name', 'provider_source_value')
+
+
+@admin.register(PatientNonClinicalInfos)
+class PatientNonClinicalInfosAdmin(admin.ModelAdmin):
+    list_display = ('person', 'name', 'user', 'created_at', 'updated_at')
+
+
+@admin.register(ProviderNonClinicalInfos)
+class ProviderNonClinicalInfosAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'email', 'phone_number', 'is_allowed', 'updated_at')
+    list_editable = ('is_allowed',)
+
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'city', 'state', 'address_1')
+    search_fields = ('city', 'state', 'address_1')
+
+
 @admin.register(ConsentDocument)
 class ConsentDocumentAdmin(admin.ModelAdmin):
     form = ConsentDocumentForm
-    list_display = ('id', 'consent_type', 'version', 'language', 'is_active', 'effective_date', 'file_size')
+    list_display = ('id', 'consent_type', 'version', 'language', 'is_active', 'effective_date', 'created_at')
     list_filter = ('consent_type', 'language', 'is_active', 'effective_date')
     search_fields = ('version', 'changelog', 'content_hash')
     readonly_fields = ('content_hash', 'file_path', 'content_type', 'file_size', 'created_at', 'file_info')
@@ -175,15 +165,15 @@ class ConsentDocumentAdmin(admin.ModelAdmin):
             'fields': ('document_file',),
             'description': 'Faça upload de um novo arquivo (PDF ou HTML). Se deixar em branco, mantém o arquivo atual.'
         }),
+        ('Documentação (OBRIGATÓRIO)', {
+            'fields': ('changelog',),
+        }),
         ('Informações do Arquivo (Somente Leitura)', {
             'fields': ('file_info', 'file_path', 'content_type', 'file_size', 'content_hash'),
             'classes': ('collapse',)
         }),
         ('Datas', {
-            'fields': ('created_at',)
-        }),
-        ('Documentação', {
-            'fields': ('changelog',),
+            'fields': ('created_at',),
             'classes': ('collapse',)
         }),
     )
@@ -199,5 +189,39 @@ class ConsentDocumentAdmin(admin.ModelAdmin):
             )
         return "Nenhum arquivo enviado"
     file_info.short_description = "Status do Arquivo"
+
+
+@admin.register(Consent)
+class ConsentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'consent_type', 'document', 'accepted', 'created_at')
+    list_filter = ('consent_type', 'accepted', 'created_at')
+    search_fields = ('user__username', 'user__email')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ConditionOccurrence)
+class ConditionOccurrenceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'condition_concept_id', 'condition_start_date')
+
+
+@admin.register(VisitOccurrence)
+class VisitOccurrenceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'visit_concept_id', 'visit_start_date', 'visit_end_date')
+
+
+@admin.register(Observation)
+class ObservationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'observation_concept_id', 'value_as_number', 'observation_datetime')
+
+
+@admin.register(Measurement)
+class MeasurementAdmin(admin.ModelAdmin):
+    list_display = ('id', 'person', 'measurement_concept_id', 'value_as_number', 'measurement_date')
+
+
+@admin.register(FactRelationship)
+class FactRelationshipAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fact_id_1', 'domain_concept_id_1', 'fact_id_2', 'domain_concept_id_2')
+
 
 
