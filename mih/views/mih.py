@@ -245,14 +245,19 @@ class MihViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def undiagnosed(self, request):
         """Retorna os casos MIH que ainda não possuem diagnóstico do especialista."""
-        rows = []
-        for condition in ConditionOccurrence.objects.filter(
-            condition_concept_id=COND_MIH_CASE
-        ).order_by('id'):
-            has_diagnosis = Observation.objects.filter(
+        # Fetch all diagnosis strings in a single query
+        diagnosed_strings = set(
+            Observation.objects.filter(
                 observation_concept_id=OBS_MIH_DIAGNOSIS_TEXT,
-                value_as_string__startswith=f"mih:{condition.id}|",
-            ).exists()
+            ).values_list('value_as_string', flat=True)
+        )
+
+        conditions = ConditionOccurrence.objects.filter(condition_concept_id=COND_MIH_CASE).order_by('id')
+
+        rows = []
+        for condition in conditions:
+            prefix = f"mih:{condition.id}|"
+            has_diagnosis = any(v.startswith(prefix) for v in diagnosed_strings)
             if not has_diagnosis:
                 rows.append(_serialize_mih(condition))
         return Response(rows)

@@ -30,7 +30,9 @@ if PARENT_DIR not in sys.path:
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError('SECRET_KEY environment variable is required. Set it before running the app.')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
@@ -137,7 +139,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        'rest_framework.permissions.IsAuthenticated',
     ),
 }
 
@@ -213,9 +215,12 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw_cors.split(',') if o.strip()] or
 CORS_ALLOW_CREDENTIALS = True
 
 from corsheaders.defaults import default_headers
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'ngrok-skip-browser-warning',
-]
+if DEV_MODE:
+    CORS_ALLOW_HEADERS = list(default_headers) + [
+        'ngrok-skip-browser-warning',
+    ]
+else:
+    CORS_ALLOW_HEADERS = list(default_headers)
 
 # CSRF — origens confiáveis para POST cross-origin (deve espelhar CORS_ALLOWED_ORIGINS)
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS

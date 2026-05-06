@@ -45,7 +45,7 @@ class MihSerializer(serializers.Serializer):
 
 class TrackingRecordSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    mih = serializers.IntegerField(required=False, allow_null=True)
+    mih = serializers.IntegerField(required=True)
     image_id = serializers.IntegerField(required=False, allow_null=True)
     observations = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 

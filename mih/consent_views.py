@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
 
 from .models import ConsentDocument
@@ -102,17 +102,10 @@ class ConsentDocumentPresignedUrlView(APIView):
 
 class ConsentDocumentUploadView(APIView):
     """POST /admin/consent-documents/upload/ — Upload de novo documento (admin)."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """Upload e versioning de documento de consentimento."""
-        # Validar permissão (super_user ou staff)
-        if not request.user.is_staff:
-            return Response(
-                {'detail': 'Permissão negada. Apenas administradores podem fazer upload.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
         # Validar campos obrigatórios
         consent_type = request.data.get('consent_type')
         version = request.data.get('version')

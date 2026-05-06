@@ -27,8 +27,13 @@ class TrackingRecordViewSet(viewsets.ViewSet):
             person_ids = PatientNonClinicalInfos.objects.filter(user=request.user).values_list('person_id', flat=True)
             rows = Observation.objects.filter(observation_concept_id=OBS_TRACKING_TEXT, person_id__in=person_ids).order_by('id')
         payload = []
+        row_ids = [row.id for row in rows]
+        fact_map = {
+            fr.fact_id_1: fr
+            for fr in FactRelationship.objects.filter(fact_id_1__in=row_ids).order_by('-id')
+        }
         for row in rows:
-            image_ref = FactRelationship.objects.filter(fact_id_1=row.id).order_by('-id').first()
+            image_ref = fact_map.get(row.id)
             payload.append({
                 'id': row.id,
                 'mih': image_ref.fact_id_2 if image_ref else None,
