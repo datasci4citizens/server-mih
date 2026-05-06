@@ -65,35 +65,60 @@ class ConsentDocumentForm(forms.ModelForm):
                 )
         return file
 
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        file = self.cleaned_data.get('document_file')
+    def clean(self):
+        cleaned_data = super().clean()
+        file = cleaned_data.get('document_file')
+        consent_type = cleaned_data.get('consent_type')
+        version = cleaned_data.get('version')
+        language = cleaned_data.get('language')
         
-        if file:
-            # Upload para MinIO
+        if file and consent_type and version and language:
             from .minio_storage import upload_consent_document_to_minio
             try:
+                # Upload para MinIO
                 file_path, content_type, content_hash = upload_consent_document_to_minio(
                     file,
-                    instance.consent_type,
-                    instance.version,
-                    instance.language
+                    consent_type,
+                    version,
+                    language
                 )
-                instance.file_path = file_path
-                instance.content_type = content_type
-                instance.content_hash = content_hash
-                instance.file_size = file.size
                 
-                # Desativar versão anterior do mesmo tipo/language
+                self._uploaded_file_data = {
+                    'file_path': file_path,
+                    'content_type': content_type,
+                    'content_hash': content_hash,
+                    'file_size': file.size
+                }
+            except Exception as e:
+                self.add_error('document_file', f'Erro ao fazer upload do arquivo: {str(e)}')
+                
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        if hasattr(self, '_uploaded_file_data'):
+            data = self._uploaded_file_data
+            instance.file_path = data['file_path']
+            instance.content_type = data['content_type']
+            instance.content_hash = data['content_hash']
+            instance.file_size = data['file_size']
+            
+            # Desativar versão anterior do mesmo tipo/language
+            if instance.id:
+                # Se já tiver ID, exclui a si mesmo (caso de edição, embora seja incomum mudar arquivo sem mudar versão)
                 ConsentDocument.objects.filter(
                     consent_type=instance.consent_type,
                     language=instance.language,
                     is_active=True
                 ).exclude(id=instance.id).update(is_active=False)
+            else:
+                ConsentDocument.objects.filter(
+                    consent_type=instance.consent_type,
+                    language=instance.language,
+                    is_active=True
+                ).update(is_active=False)
                 
-            except Exception as e:
-                raise ValidationError(f'Erro ao fazer upload do arquivo: {str(e)}')
-        
         if commit:
             instance.save()
         return instance
