@@ -1,6 +1,10 @@
 from rest_framework import serializers
+import logging
 from .models import Image
 from .minio_storage import upload_image_to_minio, MinioStorageError
+
+
+logger = logging.getLogger(__name__)
 
 
 class PatientSerializer(serializers.Serializer):
@@ -64,6 +68,7 @@ class ImageSerializer(serializers.ModelSerializer):
         try:
             object_name, content_type, extension = upload_image_to_minio(uploaded_file, user.id)
         except MinioStorageError as exc:
+            logger.exception("Error uploading image to MinIO from serializer")
             raise serializers.ValidationError({'detail': str(exc)})
 
         img = Image.objects.create(

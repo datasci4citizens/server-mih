@@ -442,14 +442,12 @@ class UpsertCurrentUserProfileView(APIView):
             if 'accept_tcle' in payload:
                 tcle_value = bool(payload.get('accept_tcle'))
                 document_ref = payload.get('tcle_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                if settings.DEV_MODE:
-                    print(f"DEBUG: accept_tcle eval. Value: {tcle_value}, Ref: {document_ref}")
+                logger.debug(f"accept_tcle eval. Value: {tcle_value}, Ref: {document_ref}")
 
                 if document_ref:
                     document = _resolve_consent_document('tcle', document_ref)
                     if document is None:
-                        if settings.DEV_MODE:
-                            print("DEBUG: TCLE document invalid")
+                        logger.debug("TCLE document invalid")
 
                         return Response(
                             {'detail': 'TCLE document reference invalid'},
@@ -457,8 +455,7 @@ class UpsertCurrentUserProfileView(APIView):
                         )
                     _record_consent(user, 'tcle', tcle_value, document, request)
                 elif tcle_value:
-                    if settings.DEV_MODE:
-                        print("DEBUG: TCLE document required but missing ref")
+                    logger.debug("TCLE document required but missing ref")
 
                     return Response(
                         {'detail': 'TCLE document reference required (id ou hash)'},
@@ -468,14 +465,12 @@ class UpsertCurrentUserProfileView(APIView):
             if 'accept_privacy_policy' in payload:
                 privacy_value = bool(payload.get('accept_privacy_policy'))
                 document_ref = payload.get('privacy_policy_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                if settings.DEV_MODE:
-                    print(f"DEBUG: accept_privacy eval. Value: {privacy_value}, Ref: {document_ref}")
+                logger.debug(f"accept_privacy eval. Value: {privacy_value}, Ref: {document_ref}")
 
                 if document_ref:
                     document = _resolve_consent_document('privacy_policy', document_ref)
                     if document is None:
-                        if settings.DEV_MODE:
-                            print("DEBUG: Privacy document invalid")
+                        logger.debug("Privacy document invalid")
 
                         return Response(
                             {'detail': 'Privacy Policy document reference invalid'},
@@ -483,8 +478,7 @@ class UpsertCurrentUserProfileView(APIView):
                         )
                     _record_consent(user, 'privacy_policy', privacy_value, document, request)
                 elif privacy_value:
-                    if settings.DEV_MODE:
-                        print("DEBUG: Privacy document required but missing ref")
+                    logger.debug("Privacy document required but missing ref")
 
                     return Response(
                         {'detail': 'Privacy Policy document reference required (id ou hash)'},

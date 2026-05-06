@@ -1,4 +1,5 @@
 from django.contrib import admin
+import logging
 from django.contrib.admin.widgets import AdminSplitDateTime
 from django import forms
 from django.core.exceptions import ValidationError
@@ -14,6 +15,9 @@ from .omop_models import (
     VisitOccurrence,
     FactRelationship,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -90,6 +94,7 @@ class ConsentDocumentForm(forms.ModelForm):
                     'file_size': file.size
                 }
             except Exception as e:
+                logger.exception("Error uploading consent document from Admin")
                 self.add_error('document_file', f'Erro ao fazer upload do arquivo: {str(e)}')
                 
         return cleaned_data
