@@ -34,6 +34,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEV_MODE = os.getenv('DEV_MODE', 'False').lower() == 'true'
 
 _raw_allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(',') if h.strip()] or [
@@ -46,6 +47,7 @@ ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(',') if h.strip()] 
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -61,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -182,7 +185,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media (user uploaded files)
 MEDIA_URL = '/media/'
@@ -190,6 +194,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # MinIO (object storage)
 MINIO_IMAGES_BUCKET = os.getenv('MINIO_IMAGES_BUCKET', 'mih')
+MINIO_DOCUMENTS_BUCKET = os.getenv('MINIO_DOCUMENTS_BUCKET', 'documents')
 MINIO_DOMAIN = os.getenv('MINIO_DOMAIN', 'localhost:9000')
 MINIO_SECURE = os.getenv('MINIO_SECURE', 'false').lower() == 'true'
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
@@ -202,6 +207,8 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw_cors.split(',') if o.strip()] or
     'http://localhost:8000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:8000',
+    'https://localhost',
+    'http://10.0.2.2',
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -214,6 +221,44 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Security cookie flags (can be overridden via environment variables)
-SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
-CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
+# In DEV_MODE, we disable secure cookies to allow local development over HTTP
+SESSION_COOKIE_SECURE = False if DEV_MODE else os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+CSRF_COOKIE_SECURE = False if DEV_MODE else os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
 
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'mih': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEV_MODE else 'INFO',
+            'propagate': False,
+        },
+    },
+}
