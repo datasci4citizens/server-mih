@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from django.utils import timezone
 from django.db import transaction
 from rest_framework.views import APIView
@@ -7,6 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import ConsentDocument
+
+
+logger = logging.getLogger(__name__)
 
 
 class ConsentDocumentListView(APIView):
@@ -89,6 +93,7 @@ class ConsentDocumentPresignedUrlView(APIView):
                 'expires_in_seconds': 3600,
             })
         except Exception as e:
+            logger.exception("Error generating presigned URL for consent document")
             return Response(
                 {'detail': f'Erro ao gerar presigned URL: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -143,6 +148,7 @@ class ConsentDocumentUploadView(APIView):
                 language
             )
         except Exception as e:
+            logger.exception("Error uploading consent document to MinIO")
             return Response(
                 {'detail': f'Erro ao fazer upload: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -193,6 +199,7 @@ class ConsentDocumentUploadView(APIView):
                 'message': 'Documento enviado com sucesso',
             }, status=status.HTTP_201_CREATED)
         except Exception as e:
+            logger.exception("Error saving consent document to database")
             from .minio_storage import delete_consent_document_from_minio
             delete_consent_document_from_minio(file_path)
             

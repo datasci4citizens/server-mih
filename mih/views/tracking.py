@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status
+import logging
 from rest_framework.response import Response
 
 from ..models import PatientNonClinicalInfos
@@ -8,6 +9,9 @@ from ..omop_models import (
     FactRelationship,
 )
 from ..serializers import TrackingRecordSerializer
+
+
+logger = logging.getLogger(__name__)
 
 
 OBS_TRACKING_TEXT = 46235038
@@ -57,11 +61,18 @@ class TrackingRecordViewSet(viewsets.ViewSet):
         
         COND_MIH_CASE = 44783854
         
-        person_id = data.get('mih')
-        condition = ConditionOccurrence.objects.filter(pk=person_id, condition_concept_id=COND_MIH_CASE).first() if person_id else None
-        person = condition.person if condition else Person.objects.order_by('id').first()
+        mih_id = data.get('mih')
+        if not mih_id:
+            return Response({'detail': 'ID do caso de HMI (mih) é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        condition = ConditionOccurrence.objects.filter(pk=mih_id, condition_concept_id=COND_MIH_CASE).first()
+        if not condition:
+            return Response({'detail': 'Caso de HMI não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        person = condition.person
         if not person:
-            return Response({'detail': 'Person not found.'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Integrity Error: Condition {mih_id} has no associated person.")
+            return Response({'detail': 'Erro de integridade: paciente não encontrado para este caso.'}, status=status.HTTP_400_BAD_REQUEST)
         non_clinical = PatientNonClinicalInfos.objects.filter(person=person).first()
         if not (request.user.is_staff or (non_clinical and non_clinical.user_id == request.user.id)):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)

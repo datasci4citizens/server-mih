@@ -1,4 +1,5 @@
 from django.db import transaction
+import logging
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -11,6 +12,9 @@ from ..omop_models import (
 )
 from ..serializers import MihSerializer
 from .patient import _is_allowed_specialist
+
+
+logger = logging.getLogger(__name__)
 
 
 # Constants (MIH observations)

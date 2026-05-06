@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from django.utils import timezone
 from django.db import transaction
@@ -16,6 +17,9 @@ from ..omop_models import (
 from ..serializers import PatientSerializer
 
 
+logger = logging.getLogger(__name__)
+
+
 def _is_allowed_specialist(user):
     """Retorna True se o usuário é um especialista habilitado pelo admin."""
     try:
@@ -30,6 +34,7 @@ def _is_allowed_specialist(user):
         nc = ProviderNonClinicalInfos.objects.filter(provider=provider).first()
         return nc is not None and nc.is_allowed
     except Exception:
+        logger.exception("Error checking if specialist is allowed")
         return False
 
 

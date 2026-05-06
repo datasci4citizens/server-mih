@@ -1,4 +1,5 @@
 import os
+import logging
 import uuid
 import hashlib
 from io import BytesIO
@@ -11,6 +12,9 @@ from minio.error import S3Error
 
 class MinioStorageError(RuntimeError):
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_minio_client() -> Minio:
@@ -57,6 +61,7 @@ def upload_image_to_minio(uploaded_file, user_id: int) -> Tuple[str, str, str]:
             content_type=content_type,
         )
     except S3Error as exc:
+        logger.error(f"S3Error during image upload: {exc}")
         raise MinioStorageError(f'Falha ao enviar arquivo para MinIO: {exc}') from exc
 
     return object_name, content_type, extension
@@ -68,6 +73,7 @@ def get_image_from_minio(object_name: str):
     try:
         return client.get_object(bucket, object_name)
     except S3Error as exc:
+        logger.error(f"S3Error during image fetch ({object_name}): {exc}")
         raise MinioStorageError(f'Falha ao obter arquivo do MinIO: {exc}') from exc
 
 
@@ -80,7 +86,8 @@ def delete_image_from_minio(object_name: str) -> None:
 
     try:
         client.remove_object(bucket, object_name)
-    except S3Error:
+    except S3Error as exc:
+        logger.warning(f"S3Error during image deletion ({object_name}): {exc}")
         pass
 
 def upload_consent_document_to_minio(
@@ -172,6 +179,7 @@ def upload_consent_document_to_minio(
             content_type=content_type,
         )
     except S3Error as exc:
+        logger.error(f"S3Error during consent document upload ({object_name}): {exc}")
         raise MinioStorageError(f'Falha ao enviar documento para MinIO: {exc}') from exc
 
     return object_name, content_type, content_hash
@@ -201,6 +209,7 @@ def get_consent_document_presigned_url(object_name: str, expires_in_seconds: int
         )
         return url
     except S3Error as exc:
+        logger.error(f"S3Error during presigned URL generation ({object_name}): {exc}")
         raise MinioStorageError(f'Falha ao gerar presigned URL: {exc}') from exc
 
 
@@ -214,5 +223,6 @@ def delete_consent_document_from_minio(object_name: str) -> None:
 
     try:
         client.remove_object(bucket, object_name)
-    except S3Error:
+    except S3Error as exc:
+        logger.warning(f"S3Error during consent document deletion ({object_name}): {exc}")
         pass

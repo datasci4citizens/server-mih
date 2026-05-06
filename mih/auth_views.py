@@ -1,5 +1,6 @@
 import os
 import requests as http_requests
+import logging
 
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
@@ -13,6 +14,11 @@ from .models import UserProfile, ProviderNonClinicalInfos, Consent, ConsentDocum
 from .omop_models import Provider, Location
 
 from django.db import transaction
+from django.conf import settings
+
+
+logger = logging.getLogger(__name__)
+
 
 GOOGLE_ACCESS_TOKEN_OBTAIN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
@@ -105,6 +111,7 @@ def _upsert_user_from_google(email, name):
             UserProfile.objects.get_or_create(user=user)
             return user
     except Exception as e:
+        logger.exception("Error upserting user from Google")
         raise
 
 
@@ -135,6 +142,7 @@ class GoogleLoginView(APIView):
                 )
             access_token = token_response.json()["access_token"]
         except (http_requests.RequestException, ValueError, KeyError) as e:
+            logger.exception("Error during Google OAuth token exchange")
             return Response(
                 {"detail": "Falha ao conectar com o Google. Tente novamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -154,6 +162,7 @@ class GoogleLoginView(APIView):
                 )
             user_info = user_info_response.json()
         except (http_requests.RequestException, ValueError) as e:
+            logger.exception("Error fetching user info from Google")
             return Response(
                 {"detail": "Falha ao obter informações do usuário. Tente novamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -168,6 +177,7 @@ class GoogleLoginView(APIView):
         try:
             user = _upsert_user_from_google(email, name)
         except Exception:
+            logger.exception("Error during user upsert")
             return Response(
                 {"detail": "Erro ao criar/atualizar usuário. Tente novamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -185,7 +195,8 @@ class GoogleLoginView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
             })
-        except Exception as e:
+        except Exception:
+            logger.exception("Error during JWT generation")
             return Response(
                 {"detail": "Erro ao gerar tokens de autenticação."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -220,6 +231,7 @@ class GoogleLoginNativeView(APIView):
                 )
             user_info = user_info_response.json()
         except (http_requests.RequestException, ValueError) as e:
+            logger.exception("Error validating Google native token")
             return Response(
                 {"detail": "Falha ao validar token. Tente novamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -234,6 +246,7 @@ class GoogleLoginNativeView(APIView):
         try:
             user = _upsert_user_from_google(email, name)
         except Exception:
+            logger.exception("Error during user upsert")
             return Response(
                 {"detail": "Erro ao criar/atualizar usuário. Tente novamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -251,7 +264,8 @@ class GoogleLoginNativeView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
             })
-        except Exception as e:
+        except Exception:
+            logger.exception("Error during JWT generation")
             return Response(
                 {"detail": "Erro ao gerar tokens de autenticação."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -303,6 +317,7 @@ def _sync_specialist_omop(user, profile):
 
             return provider
     except Exception:
+        logger.exception("Error syncing specialist OMOP")
         return None
 
 
@@ -350,6 +365,7 @@ class CurrentUserView(APIView):
                     non_clinical = ProviderNonClinicalInfos.objects.get(provider=provider)
                     is_allowed = non_clinical.is_allowed
                 except Exception:
+                    logger.exception("Unexpected error in fetch is_allowed from non-clinical")
                     is_allowed = profile.is_allowed
             else:
                 is_allowed = profile.is_allowed
@@ -370,6 +386,7 @@ class CurrentUserView(APIView):
                 'pending_actions': pending_actions,
             })
         except Exception as e:
+            logger.exception("Error loading current user data")
             return Response(
                 {'detail': 'Erro ao carregar dados do usuário.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -414,6 +431,7 @@ class UpsertCurrentUserProfileView(APIView):
                 profile.neighborhood = payload.get('neighborhood')
             profile.save()
         except Exception as e:
+            logger.exception("Error updating user profile")
             return Response(
                 {'detail': 'Erro ao atualizar perfil.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -424,18 +442,24 @@ class UpsertCurrentUserProfileView(APIView):
             if 'accept_tcle' in payload:
                 tcle_value = bool(payload.get('accept_tcle'))
                 document_ref = payload.get('tcle_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                print(f"DEBUG: accept_tcle eval. Value: {tcle_value}, Ref: {document_ref}")
+                if settings.DEV_MODE:
+                    print(f"DEBUG: accept_tcle eval. Value: {tcle_value}, Ref: {document_ref}")
+
                 if document_ref:
                     document = _resolve_consent_document('tcle', document_ref)
                     if document is None:
-                        print("DEBUG: TCLE document invalid")
+                        if settings.DEV_MODE:
+                            print("DEBUG: TCLE document invalid")
+
                         return Response(
                             {'detail': 'TCLE document reference invalid'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     _record_consent(user, 'tcle', tcle_value, document, request)
                 elif tcle_value:
-                    print("DEBUG: TCLE document required but missing ref")
+                    if settings.DEV_MODE:
+                        print("DEBUG: TCLE document required but missing ref")
+
                     return Response(
                         {'detail': 'TCLE document reference required (id ou hash)'},
                         status=status.HTTP_400_BAD_REQUEST
@@ -444,23 +468,30 @@ class UpsertCurrentUserProfileView(APIView):
             if 'accept_privacy_policy' in payload:
                 privacy_value = bool(payload.get('accept_privacy_policy'))
                 document_ref = payload.get('privacy_policy_document')  # pode ser: {id: 123} ou {hash: 'sha256:...'}
-                print(f"DEBUG: accept_privacy eval. Value: {privacy_value}, Ref: {document_ref}")
+                if settings.DEV_MODE:
+                    print(f"DEBUG: accept_privacy eval. Value: {privacy_value}, Ref: {document_ref}")
+
                 if document_ref:
                     document = _resolve_consent_document('privacy_policy', document_ref)
                     if document is None:
-                        print("DEBUG: Privacy document invalid")
+                        if settings.DEV_MODE:
+                            print("DEBUG: Privacy document invalid")
+
                         return Response(
                             {'detail': 'Privacy Policy document reference invalid'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     _record_consent(user, 'privacy_policy', privacy_value, document, request)
                 elif privacy_value:
-                    print("DEBUG: Privacy document required but missing ref")
+                    if settings.DEV_MODE:
+                        print("DEBUG: Privacy document required but missing ref")
+
                     return Response(
                         {'detail': 'Privacy Policy document reference required (id ou hash)'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
         except Exception as e:
+            logger.exception("Error registering consents")
             return Response(
                 {'detail': 'Erro ao registrar consentimentos.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -470,6 +501,7 @@ class UpsertCurrentUserProfileView(APIView):
             provider = _sync_specialist_omop(user, profile) if profile.role == UserProfile.ROLE_SPECIALIST else None
             consent_state = Consent.objects.get_current_state(user)
         except Exception as e:
+            logger.exception("Error during final profile update sync")
             return Response(
                 {'detail': 'Erro ao atualizar perfil.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -508,4 +540,5 @@ class ObtainTokenForSessionView(APIView):
                 'refresh': str(refresh),
             })
         except Exception as e:
+            logger.exception("Error obtaining token for session")
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

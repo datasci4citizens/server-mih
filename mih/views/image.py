@@ -1,4 +1,5 @@
 from django.http import Http404
+import logging
 from django.http import StreamingHttpResponse
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
@@ -7,6 +8,9 @@ from ..models import Image
 from ..minio_storage import get_image_from_minio, delete_image_from_minio, MinioStorageError
 from ..serializers import ImageSerializer
 from .patient import _is_allowed_specialist
+
+
+logger = logging.getLogger(__name__)
 
 
 class ImageViewSet(viewsets.ModelViewSet):
@@ -34,7 +38,8 @@ class ImageViewSet(viewsets.ModelViewSet):
 
         try:
             minio_obj = get_image_from_minio(image.object_name)
-        except MinioStorageError:
+        except MinioStorageError as exc:
+            logger.error(f"MinioStorageError fetching image content: {exc}")
             raise Http404('Image file not found in object storage')
 
         def stream_minio_object(obj, chunk_size=8192):
