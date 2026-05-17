@@ -48,43 +48,25 @@ Siga estas instruções para rodar o servidor e seus serviços dependentes local
 
 O ambiente utiliza Docker para rodar o PostgreSQL e o MinIO.
 
-1.  Navegue até o diretório de configuração do banco:
+1.  Na raiz do projeto, crie seu arquivo de ambiente a partir do modelo:
     ```bash
-    cd install/dbms/
+    cp .env-model .env-model
     ```
+    Preencha as variáveis necessárias (credenciais Google OAuth, `SECRET_KEY`, etc.).
 
-2.  Crie uma cópia do arquivo `docker-compose-model.yml` e renomeie para `docker-compose.yml`:
-    ```bash
-    cp docker-compose-model.yml docker-compose.yml
-    ```
-    *Make 2 directories, **docker** and **impexp**, and use their path on their respective volumes inside **docker-compose.yml**.*
-
-3.  Inicie os contêineres:
+2.  Inicie todos os serviços (API, PostgreSQL e MinIO) com:
     ```bash
     docker-compose up -d
     ```
-    Isso iniciará o PostgreSQL em background.
 
 ### 2. Configuração da Aplicação
 
-1.  Volte para a raiz do projeto e crie um ambiente virtual:
+1.  Crie um ambiente virtual e instale as dependências:
     ```bash
-    cd ../..
     python -m venv .venv
     source .venv/bin/activate
-    ```
-
-2.  Instale as dependências do Python:
-    ```bash
     pip install -r requirements.txt
     ```
-
-3.  Crie seu arquivo de ambiente a partir do modelo:
-    ```bash
-    cp .env-model .env
-    ```
-
-4.  Abra o arquivo `.env` e **preencha todas as variáveis**, especialmente as credenciais do Google OAuth (`CLIENT_ID`, `CLIENT_SECRET`) e a `SECRET_KEY`.
 
 ### 3. Rodando o Servidor
 
@@ -111,3 +93,4 @@ A API é modularizada em diferentes roteadores:
 - `/users/patients`: Gerenciamento dos pacientes de um usuário.
 - `/mih`: Gerenciamento dos registros de HMI e seus diagnósticos.
 - `/images`: Geração de URLs para upload de imagens.
+- `/healthz`: Health check do servidor.
