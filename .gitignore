@@ -7,6 +7,6 @@ mih/migrations/__pycache__/
 node_modules/
 server_mih/media/images/
 .env
-docker-compose.yml
 staticfiles/
+k8s/secret.yaml
 server_mih/staticfiles/
