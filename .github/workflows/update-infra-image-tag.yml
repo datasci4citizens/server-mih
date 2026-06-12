@@ -6,7 +6,7 @@ on:
     types:
       - completed
     branches:
-      - main
+      - main-django
 
 jobs:
   update-tag:
@@ -14,23 +14,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: datasci4citizens
+          repositories: server-infrastructure
+
       - name: Checkout infra repo
         uses: actions/checkout@v4
         with:
           repository: datasci4citizens/server-infrastructure
-          token: ${{ secrets.INFRA_REPO_PAT }}
+          token: ${{ steps.app-token.outputs.token }}
           ref: main
 
       - name: Update image tag
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          SHA_TAG="sha-${GITHUB_SHA::7}"
+          SHA_TAG="sha-${HEAD_SHA::7}"
           APP_DIR="apps/${{ vars.APP_NAME }}/overlays/prod"
 
           cd "$APP_DIR"
           sed -i "s|newTag: .*|newTag: ${SHA_TAG}|" kustomization.yaml
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "infra-deployer[bot]"
+          git config user.email "infra-deployer[bot]@users.noreply.github.com"
           git add kustomization.yaml
-          git commit -m "chore: bump ${{ vars.APP_NAME }} image to ${SHA_TAG}"
+          git diff --cached --quiet || git commit -m "chore: bump ${{ vars.APP_NAME }} image to ${SHA_TAG}"
           git push
